@@ -1,0 +1,29 @@
+{
+  "id": "rcpt_valid_mcp_001",
+  "companyId": "co_permission_protocol",
+  "idemKey": "idem_mcp_2026_04_30_x1",
+  "agentId": "agent_prod_1",
+  "runId": "run_12345",
+  "requestJson": {
+    "signer": "alice@corp.com",
+    "action": "tool:write_file",
+    "repo": "example/agent-runtime",
+    "commitSha": "9f2c1a7"
+  },
+  "inputHash": "5afae33244f9922cfdd40adcffb0d91603e841cb0229484e7dbf35ec9e8adcd2",
+  "status": "valid",
+  "riskTier": "high",
+  "policyVersion": "prod-deploy-v2",
+  "reasonCodes": [
+    "POLICY_MATCH"
+  ],
+  "summary": "Approved MCP tool write-file operation",
+  "receiptVersion": "v1",
+  "canonicalization": "jcs_v1",
+  "signatureAlg": "ed25519",
+  "signatureKeyId": "pp-test-2026-q2",
+  "expiresAt": "2026-12-31T00:00:00.000Z",
+  "createdAt": "2026-04-30T16:23:11.000Z",
+  "signatureValue": "8di4yDA8IOezfVtY3nTqGAQSdy8Dc0aBcwiRBYueXsWRk30xMc07siAv3mNSNjtI0eyiOVIlPqs51cExOdxQAw==",
+  "redeemedAt": "2026-04-30T17:00:00.000Z"
+}

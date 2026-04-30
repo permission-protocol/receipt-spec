@@ -1,0 +1,1 @@
+for c in "valid-deploy 0" "valid-mcp 0" "valid-payment 0" "expired 2" "tampered 1"; do set -- $c; node ~/Projects/pp-cli/dist/cli.js verify "$(dirname "$0")/../fixtures/$1.json" --key-file "$(dirname "$0")/../fixtures/keypair-test/public-key.pem" --no-network -q; [ $? -eq "$2" ] || { echo "FAIL $1"; exit 1; }; done; echo "PASS"

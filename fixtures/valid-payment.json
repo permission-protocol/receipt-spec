@@ -1,0 +1,32 @@
+{
+  "id": "rcpt_valid_payment_001",
+  "companyId": "co_permission_protocol",
+  "idemKey": "idem_payment_refund_2026_04_30_x1",
+  "agentId": "agent_prod_1",
+  "runId": "run_12345",
+  "requestJson": {
+    "signer": "alice@corp.com",
+    "action": "payment:refund",
+    "amountUsd": 250,
+    "currency": "USD",
+    "reason": "customer_refund",
+    "paymentId": "pay_100200300",
+    "accountId": "acct_demo_123"
+  },
+  "inputHash": "50d045a7fea23f5cdd7594f6fca68128771c5609c161dbea8d2948eb05acece7",
+  "status": "valid",
+  "riskTier": "high",
+  "policyVersion": "prod-deploy-v2",
+  "reasonCodes": [
+    "POLICY_MATCH"
+  ],
+  "summary": "Approved $250 customer refund",
+  "receiptVersion": "v1",
+  "canonicalization": "jcs_v1",
+  "signatureAlg": "ed25519",
+  "signatureKeyId": "pp-test-2026-q2",
+  "expiresAt": "2026-12-31T00:00:00.000Z",
+  "createdAt": "2026-04-30T16:23:11.000Z",
+  "signatureValue": "e46/Y2kYaRxzeR3fMCdH0rUDnSH1piDkPGiublc/Ftz4k0zCgC05hUT51qvf7oHAibZ75lCKZL9ClVINMH+8BQ==",
+  "redeemedAt": "2026-04-30T17:00:00.000Z"
+}
