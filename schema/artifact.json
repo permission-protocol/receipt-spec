@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/permission-protocol/receipt-spec/schema/artifact.json",
+  "title": "Permission Protocol receipt artifact envelope",
+  "description": "The portable form of a receipt: the exact signed bytes, the signature, the digest, and the key identifier. Served publicly at https://app.permissionprotocol.com/r/<receipt_id>.json (signature-intact receipts only) and, tenant-authenticated, at GET /api/v1/receipts/<receipt_id>/artifact. Decode payload_bytes_b64 to obtain the object described by receipt-v2.json.",
+  "type": "object",
+  "required": ["artifact"],
+  "properties": {
+    "artifact": {
+      "type": "object",
+      "required": ["receipt_id", "key_id", "alg", "signed_payload_hash", "signature_b64", "payload_bytes_b64"],
+      "properties": {
+        "receipt_id": { "type": "string", "minLength": 1 },
+        "status": { "type": "string" },
+        "receipt_version": { "type": "integer" },
+        "canonicalization": { "type": "string" },
+        "key_id": { "type": "string", "minLength": 1 },
+        "alg": { "const": "ed25519" },
+        "signed_payload_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Lowercase hex SHA-256 of the decoded payload bytes." },
+        "signature_b64": { "type": "string", "description": "Base64 of the 64-byte Ed25519 signature over the 32-byte SHA-256 digest of the payload bytes." },
+        "payload_bytes_b64": { "type": "string", "description": "Base64 of the exact canonical UTF-8 bytes that were hashed and signed." },
+        "issued_at": { "type": "string" },
+        "expires_at": { "type": ["string", "null"] },
+        "redeemed_at": { "type": ["string", "null"] }
+      }
+    },
+    "keys_url": {
+      "type": "string",
+      "description": "Where the issuer publishes its key set. Present on the public artifact. Verifiers MAY pin their own copy instead."
+    },
+    "verification_hint": { "type": "string" }
+  }
+}

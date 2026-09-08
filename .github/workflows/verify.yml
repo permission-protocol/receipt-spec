@@ -1,0 +1,25 @@
+name: Conformance
+
+on: [push, pull_request]
+
+jobs:
+  vectors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # No install step: the tests and the reference verifier are dependency-free.
+      - name: Verify every test vector and validate against the schema
+        run: node --test "test/*.test.mjs"
+      - name: Verify one vector through the reference CLI
+        run: node tools/verify.mjs test-vectors/approve-human-deploy-gate.json test-vectors/keys.json
+      - name: The tampered vector must fail
+        run: |
+          if node tools/verify.mjs test-vectors/tampered-approve-human-deploy-gate.json test-vectors/keys.json; then
+            echo "tampered vector verified; that is a bug" && exit 1
+          fi
+      - name: Vectors are regenerated deterministically from their inputs
+        run: |
+          node tools/generate-vectors.mjs --check
