@@ -60,7 +60,7 @@ ISO/IEC 42001 is not mapped yet. When the site page lands, a row set is added he
 `deciderId` names the decider at the granularity the mint path had at signing time:
 
 - Deploy-gate lane (CI/CD): `user:<id>` with the GitHub login in `deciderDisplay`, `deciderAuthMethod: session`, `attributionConfidence: credentialed`. This names a human.
-- Execute lane (agent and tool calls through the router): today `role/human-approver`, `role/founder`, or `role/api-key-approver` with `attributionConfidence: heuristic`. The individual who resolved the hold is on the approval record, joined by an unsigned reference. A change to bind the individual identity on this lane is in review (`permission-protocol/app`, decider attribution PR); once it lands, new execute-lane receipts carry `user:<id>` and old ones keep their role-class value forever.
+- Execute lane (agent and tool calls through the router): since 2026-09-08, a human decision binds `user:<id>` with the GitHub handle in `deciderDisplay`, `attributionConfidence: heuristic` (the identity is read from the approval record at signing time, not captured at the signature). This names a human. Receipts signed before that date bind `role/human-approver` or `role/founder` and are never re-signed, and the API-key lane still binds `role/api-key-approver`, so an assessor will meet both forms. `SPEC.md` 7.4 states the difference.
 - Policy decisions: `system/pp-permission-router`, `system/pp-policy-engine`, or `system/pp-engine`. To an assessor this is a signed statement that **no human approved this**; the named `policyVersion` is the accountable authority.
 - Demo scope: `demo:<id>`, `unattributed`, signed under a distinct demo key. Never production evidence.
 
