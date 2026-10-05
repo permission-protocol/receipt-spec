@@ -1,0 +1,31 @@
+{
+  "description": "failed: a human authorized the pull request at the decision; the adapter reported failure. The receipt stays APPROVED: it records the authorization, the attestation records the outcome. No output, so no outputHash.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/lib/permission-router/authorized-execution.ts (executeAuthorized, adapter threw)",
+  "receipt_vector": "approve-human-execute-lane-create-pr.json",
+  "attestation_artifact": {
+    "approval_receipt_id": "cmvec06humancreatepr000000001",
+    "outcome": "failed",
+    "attestation_version": 1,
+    "canonicalization": "attest_v1",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "53ec4e4b46d8a8c43ff7cfd6c6e967b8fe4666e28a3b506e285cc0ff68ddeff3",
+    "signature_b64": "BglVLNCkWGJiD/CWHaTuGYqrimh42tcq2J1wwyICOAfWwYy0UX5R9t9RUuU4F1gXgrZAG6nyhX17LPdZYYWSBg==",
+    "payload_bytes_b64": "eyJhcHByb3ZhbFJlY2VpcHRJZCI6ImNtdmVjMDZodW1hbmNyZWF0ZXByMDAwMDAwMDAxIiwiYXR0ZXN0YXRpb25WZXJzaW9uIjoxLCJjYW5vbmljYWxpemF0aW9uIjoiYXR0ZXN0X3YxIiwiY3JlYXRlZEF0IjoiMjAyNi0wOS0wMVQxNDozMToxMS4zMDBaIiwiZmluaXNoZWRBdCI6IjIwMjYtMDktMDFUMTQ6MzE6MTEuMjUwWiIsIm91dGNvbWUiOiJmYWlsZWQiLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJwcC10ZXN0LTIwMjYtcTIiLCJzdGFydGVkQXQiOiIyMDI2LTA5LTAxVDE0OjMxOjEwLjAwMFoifQ==",
+    "issued_at": "2026-09-01T14:31:11.300Z"
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify the receipt named by approval_receipt_id first (SPEC.md section 6.2). Then verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under attest_v1, check approvalReceiptId equals that receipt's id, and verify the Ed25519 signature over the digest with the public key for key_id.",
+  "attestation": {
+    "approvalReceiptId": "cmvec06humancreatepr000000001",
+    "attestationVersion": 1,
+    "canonicalization": "attest_v1",
+    "createdAt": "2026-09-01T14:31:11.300Z",
+    "finishedAt": "2026-09-01T14:31:11.250Z",
+    "outcome": "failed",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "startedAt": "2026-09-01T14:31:10.000Z"
+  }
+}

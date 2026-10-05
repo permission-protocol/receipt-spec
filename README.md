@@ -20,7 +20,7 @@ A receipt is a signed statement that a specific decision (approve or deny) was m
 |---|---|
 | [`schema/receipt-v2.json`](./schema/receipt-v2.json) | JSON Schema (draft 2020-12) for the decoded signed payload. |
 | [`schema/artifact.json`](./schema/artifact.json) | JSON Schema for the portable envelope (`payload_bytes_b64`, `signature_b64`, `key_id`). |
-| [`test-vectors/`](./test-vectors/) | Signed receipts: approve by a human, approve by the policy engine, deny by the kill switch, one deliberately tampered, and one real production receipt captured from the live service. With the key sets that verify them. |
+| [`test-vectors/`](./test-vectors/) | Signed receipts: approve by a human, approve by the policy engine, deny by the kill switch, execute-lane human approvals signed before the action, one deliberately tampered, and one real production receipt captured from the live service; under `attestations/`, one signed execution attestation per outcome plus a tampered one. With the key sets that verify them. |
 | [`tools/verify.mjs`](./tools/verify.mjs) | Reference verifier, no dependencies: `node tools/verify.mjs artifact.json keys.json`. |
 | [`tools/canonicalize.mjs`](./tools/canonicalize.mjs) | Reference canonicalization for `jcs_v1` and `jcs_v2`. |
 | [`tools/generate-vectors.mjs`](./tools/generate-vectors.mjs) | Regenerates the vectors deterministically; CI fails on drift. |

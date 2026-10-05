@@ -46,7 +46,7 @@ The signed payload is a flat JSON object. Its field names are the hosted service
 | `summary` | string | optional | Human-readable summary of the decision context. |
 | `deciderId` | string | always (v2) | Stable id of who decided. Section 7.2 lists every form in use. |
 | `deciderDisplay` | string | always (v2) | Human-facing label: the GitHub login for a session signer, a fixed label for the policy engine, a role-class label on the execute lane. |
-| `deciderAuthMethod` | string | optional (v2) | `session`, `api_key`, `anonymous_demo`, or `policy`. Absent where the mint path recorded null: the deploy-gate webhook auto-clearance (`system/pp-engine`). |
+| `deciderAuthMethod` | string | optional (v2) | `session`, `session_stepup_webauthn`, `session_reauth`, `api_key`, `anonymous_demo`, or `policy`. The two step-up values name a human who gave fresh proof of presence at the moment of signing (a passkey assertion, or a recent re-authentication) on top of the session. Absent where the mint path recorded null: the deploy-gate webhook auto-clearance (`system/pp-engine`). |
 | `resolutionType` | string | optional (v2) | `allow_once`, `allow_always`, or `deny`. Absent on policy-engine decisions on the execute and ledger lanes: the engine cleared or denied under policy, it did not allow once. |
 | `attributionConfidence` | string | always (v2) | `credentialed`, `heuristic`, or `unattributed`. Section 7.3. |
 | `scope` | string | always (v2) | `production` or `demo`. A demo receipt is signed under a distinct demo key and can never pass as production evidence. |
@@ -54,7 +54,7 @@ The signed payload is a flat JSON object. Its field names are the hosted service
 | `canonicalization` | string | always | `jcs_v2`. |
 | `signatureAlg` | string | always | `ed25519`. |
 | `signatureKeyId` | string | always | Names the issuer key. Resolve it through the published key set before verifying. |
-| `expiresAt` | string | always | ISO 8601 UTC with milliseconds (`Date.prototype.toISOString`). Bounds one-time redemption of an approval (deploy gate: 15 minutes by default; execute lane: one hour). The signature stays valid evidence after expiry. |
+| `expiresAt` | string | always | ISO 8601 UTC with milliseconds (`Date.prototype.toISOString`). Bounds one-time redemption of an approval (deploy gate: 15 minutes by default; execute lane: one hour, or 15 minutes for an authorization signed before execution, section 9). The signature stays valid evidence after expiry. |
 | `createdAt` | string | always | ISO 8601 UTC with milliseconds. When the row was created. Decision receipts on both lanes are signed when the decision lands, so for those it is also the decision time. |
 
 `schema/receipt-v2.json` encodes this table. It marks `additionalProperties: false`: a payload carrying any other key was not produced under `jcs_v2`.
@@ -63,7 +63,7 @@ The signed payload is a flat JSON object. Its field names are the hosted service
 
 The issuer stores more than it signs. `signatureValue`, `signedPayloadBytes`, `signedPayloadHash`, `signerOrigin`, `redeemedAt`, `redeemedRunId`, `redeemedBy`, `approvalId`, `linkedApprovalId`, `policySnapshotBefore`, `policySnapshotAfter`, `executionJson`, `errorJson`, `receiptType`, and `updatedAt` are outside the signed set. In particular:
 
-- **Execution outcome is not signed.** `executionJson` records what a tool returned on the execute lane; it is unsigned and may be absent. A receipt proves authorization, not completion. A design to make the outcome a separate signed attestation referencing the approval receipt is under review in `permission-protocol/app` (issue #7).
+- **Execution outcome is not in the receipt.** `executionJson` and `errorJson` record what a tool returned on the execute lane; they are unsigned issuer data and may be absent. A receipt proves authorization, not completion. The outcome, when the issuer recorded one, is a separate signed object that references the receipt: the execution attestation (section 9).
 - **Redemption is issuer state.** One-time redemption (`redeemedAt`) is enforced by the issuer's verify endpoint for CI gates. It is not evidence and it is not signed.
 
 ### 3.3 `requestJson`
@@ -190,7 +190,7 @@ After step 7 a verifier SHOULD validate the payload against `schema/receipt-v2.j
 
 Success proves that the bytes were signed by the holder of the private key for `key_id` and are unchanged, and therefore that the decision, decider, policy version, action snapshot, and timestamps inside them are what the issuer committed to.
 
-It does not prove that the action executed or succeeded (section 3.2), that the decision was correct, that the receipt is still redeemable, or that the receipt covers the action in front of you unless you compared `requestJson` and `inputHash` to it (section 3.3).
+It does not prove that the action executed or succeeded (section 3.2; an execution attestation, section 9, records what the issuer observed), that the decision was correct, that the receipt is still redeemable, or that the receipt covers the action in front of you unless you compared `requestJson` and `inputHash` to it (section 3.3).
 
 ### 6.5 Denials
 
@@ -212,13 +212,14 @@ Every form of `deciderId` the hosted service writes, with the lane and the other
 
 | `deciderId` | Lane | `deciderAuthMethod` | `attributionConfidence` | `resolutionType` | Meaning |
 |---|---|---|---|---|---|
-| `user:<userId>` | deploy gate (session or CLI) | `session` | `credentialed` | `allow_once` | A human, authenticated by session, resolved to an owner or admin of the tenant. `deciderDisplay` is the GitHub login. **Names a human.** |
+| `user:<userId>` | deploy gate (session or CLI) | `session`, `session_stepup_webauthn` or `session_reauth` | `credentialed` | `allow_once` | A human, authenticated by session, resolved to an owner or admin of the tenant. `deciderDisplay` is the GitHub login. **Names a human.** |
 | `api_key:<keyId>` | deploy gate (API key) | `api_key` | `credentialed` | `allow_once` | A machine credential holding the approval scope. Not a human. |
 | `demo:<actorId>` | public demo | `anonymous_demo` | `unattributed` | `allow_once` or `deny` | The anonymous public demo signer. Always `scope: demo`, always the demo key. |
 | `system/pp-engine` | deploy gate, webhook auto-clearance | absent (null) | `credentialed` | `allow_once` | The policy engine cleared the change on push under `deploy-gate-v1`. No human approved. |
 | `system/pp-permission-router` | execute lane | `policy` | `credentialed` | absent | The router's policy evaluation cleared or denied the action, including kill-switch denials. No human approved. |
 | `system/pp-policy-engine` | ledger lane (not routed today) | `policy` | `credentialed` | absent | The PPv1 engine. Listed for completeness. |
-| `user:<userId>` | execute lane | `session` | `heuristic` | `allow_once` or `deny` | A human resolved the hold in the approvals surface, bound as the individual since 2026-09-08. `deciderDisplay` is the GitHub handle. **Names a human.** `heuristic`, not `credentialed`, because the identity is read from the approval record at signing time rather than captured at the moment of signature: see 7.3 and 7.4. |
+| `user:<userId>` | execute lane, signed at the decision | `session`, `session_stepup_webauthn` or `session_reauth` | `credentialed` | `allow_once` | A human approved the hold, and the authorization was signed in that same request, before the action ran, with the identity captured from the live session (section 9.1). **Names a human.** |
+| `user:<userId>` | execute lane | `session`, `session_stepup_webauthn` or `session_reauth` | `heuristic` | `allow_once` or `deny` | A human resolved the hold in the approvals surface, bound as the individual since 2026-09-08. `deciderDisplay` is the GitHub handle. **Names a human.** `heuristic`, not `credentialed`, because the identity is read from the approval record at signing time rather than captured at the moment of signature: see 7.3 and 7.4. |
 | `role/human-approver` | execute lane | `session` | `heuristic` | `allow_once` or `deny` | A human resolved the hold. Every execute-lane human decision before 2026-09-08 carries this, and so does one after that date whose approval record names no resolvable individual: see 7.4. |
 | `role/founder` | execute lane | `session` | `heuristic` | `allow_once` or `deny` | As above, for a hold flagged as a founder veto (`FOUNDER_VETO_REQUESTED` in `reasonCodes`). Since 2026-09-08 such a decision binds `user:<userId>` instead and the founder marker stays in the signed `reasonCodes`. |
 | `role/api-key-approver` | execute lane | `api_key` | `heuristic` | `allow_once` or `deny` | The hold was resolved with an API key. Not a human. |
@@ -229,8 +230,8 @@ To an assessor, every `system/*` decider is a signed statement that **no human a
 
 ### 7.3 Attribution confidence
 
-- `credentialed`: the decider authenticated to the issuer at decision time (session, API key) or is a named policy version. The proof strength of a `session` decider equals the issuer's login: today a GitHub OAuth session resolved to tenant membership, with no re-authentication at the moment of signing. Step-up authentication at signing is designed and not shipped; when it ships it appears as a new `deciderAuthMethod` value, not a new field.
-- `heuristic`: the identity was joined from the approval record at signing time rather than captured at the signature. This is the execute lane today (7.4).
+- `credentialed`: the decider authenticated to the issuer at decision time (session, API key) or is a named policy version. The proof strength of a `session` decider equals the issuer's login: a GitHub OAuth session resolved to tenant membership. Step-up authentication at signing shipped as two `deciderAuthMethod` values, `session_stepup_webauthn` and `session_reauth` (observed on production receipts by 2026-10-03), not as a new field. Execute-lane human approvals signed at the decision are `credentialed` (section 9.1).
+- `heuristic`: the identity was joined from the approval record at signing time rather than captured at the signature. This is an execute-lane decision signed after the decision request: every execute-lane human decision before authorization-first signing (section 9.1), and since then one whose signing at the decision was deferred (a freeze or pause on the action, a signer outage) and happened at redemption instead (7.4).
 - `unattributed`: anonymous. Permitted only in `demo` scope; the issuer refuses to sign an unattributed production decision.
 
 ### 7.4 Human signer granularity, stated plainly
@@ -260,14 +261,88 @@ Buyers asked for tamper-evident logs. A signed receipt proves **alteration**: ch
 
 The issuer's `idemKey` uniqueness per tenant and its append-only row model are not a substitute: they are issuer-side properties a verifier cannot check. Tracked as an issue in this repository; see `VERSIONING.md` for how the field will be introduced.
 
-## 9. Lifecycle around the receipt
+## 9. Execution attestations (`attest_v1`)
+
+A receipt proves authorization. On the execute lane the issuer also records what happened when an `APPROVED` authorization was acted on, as a separate signed object: the **execution attestation**. It references the receipt by id. It never changes the receipt, and the receipt never changes because of it.
+
+### 9.1 When the issuer emits one
+
+- **Authorization comes first.** The issuer signs the `APPROVED` receipt before the action runs: for a policy clearance, when policy allows; for a human approval, in the request in which the human approves (the identity captured from the live session, `credentialed`), or, if that could not happen then, when the agent redeems the approval and before anything runs. An authorization that cannot be signed is not acted on.
+- **Then exactly one execution, then one attestation.** The issuer acts on the authorization once and attests the outcome. At most one attestation exists per receipt.
+- **Outcomes.** `succeeded`: the action's adapter returned; `outputHash` commits to what it returned. `failed`: the adapter reported failure. `unknown`: the issuer cannot know whether the action took effect: the adapter reported an indeterminate result (with a start time), or the process stopped after claiming the execution and before recording its outcome, in which case the issuer records `unknown` with no times and no output after a 15-minute stale window. The issuer never re-runs an action to resolve `unknown` and never upgrades it.
+- **No attestation:** for deploy-gate receipts (the merge or deploy happens elsewhere, gated on redeeming the receipt); for authorize-only actions, where another system performs the action after it sees `APPROVED` (the issuer executed nothing, so it attests nothing); for an authorization not acted on yet; and for receipts minted before the issuer began emitting attestations (2026-10, ADR 0003 in `permission-protocol/app`). Absence is not evidence of either outcome.
+- **Unsigned outcome.** If the issuer cannot sign an attestation after bounded retries, it records the outcome unsigned and flagged (`signing_failed`). Such a record proves nothing (section 9.5); the receipt's authorization signature is unaffected.
+
+### 9.2 Signed fields
+
+| Field | Type | Presence | Meaning |
+|---|---|---|---|
+| `approvalReceiptId` | string | always | The `id` of the `APPROVED` receipt this attests. |
+| `outcome` | string | always | `succeeded`, `failed`, or `unknown`. |
+| `toolCallId` | string | optional | The adapter's own identifier for the call, when it returned one. |
+| `outputHash` | string | optional | `sha256:` plus lowercase hex SHA-256 of the canonical JSON (recursively sorted keys, no whitespace, UTF-8) of what the adapter returned. Unsalted: it confirms a guessed output, so the issuer does not publish attestation bytes on its public surface (9.4). |
+| `startedAt` | string | optional | ISO 8601 UTC with milliseconds. When the issuer started the action. |
+| `finishedAt` | string | optional | When the adapter returned or failed. |
+| `attestationVersion` | integer | always | `1`. |
+| `canonicalization` | string | always | `attest_v1`. |
+| `signatureAlg` | string | always | `ed25519`. |
+| `signatureKeyId` | string | always | The same issuer key set as receipts. |
+| `createdAt` | string | always | When the issuer recorded the outcome. |
+
+Consistency rules a verifier checks after the signature: `succeeded` and `failed` carry `startedAt` and `finishedAt`, with `finishedAt` not before `startedAt`; `unknown` carries neither `finishedAt` nor `outputHash` (if either were known, the outcome would be too). The tenant is not signed: receipt ids are unique, and the receipt's own signature binds what was authorized. `schema/attestation-v1.json` encodes the table.
+
+### 9.3 Canonicalization and signature
+
+`attest_v1` applies the byte rules of section 4 to the field list above: listed fields only, `null` and absent skipped, keys sorted recursively, dates as ISO 8601 with milliseconds, `JSON.stringify` without whitespace, UTF-8. The signature is Ed25519 over the SHA-256 digest of those bytes, with a key from the receipts' key set. `attest_v1` is frozen under the same rule as a receipt canonicalization (`VERSIONING.md`); it is the attestation's own identifier and never a `jcs_v*` value.
+
+### 9.4 The attestation artifact
+
+Served as `attestation_artifact` next to `artifact` for an execute-lane receipt (`null` when it has none; absent for deploy-gate receipts):
+
+```json
+{
+  "attestation_artifact": {
+    "approval_receipt_id": "cmvec02policyclear00000000001",
+    "outcome": "succeeded",
+    "attestation_version": 1,
+    "canonicalization": "attest_v1",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "<64 hex>",
+    "signature_b64": "<64-byte Ed25519 signature, base64>",
+    "payload_bytes_b64": "<the exact attest_v1 bytes, base64>",
+    "issued_at": "2026-09-01T14:05:00.512Z"
+  }
+}
+```
+
+- The owning tenant's `GET /api/v1/receipts/<receipt_id>/artifact` carries `payload_bytes_b64`.
+- The public `/r/<receipt_id>.json` carries `payload_withheld: true` instead (digest and signature only), for the reason in 9.2. Its `outcome` is then an unsigned statement of the issuer.
+- An unsigned record is `{ "approval_receipt_id", "outcome", "attestation_version": 1, "signed": false, "signing_failed": true, "issued_at" }`, with no signature fields.
+
+### 9.5 Verify procedure
+
+1. Verify the receipt the attestation names (section 6.2). Require its `id` to equal `approval_receipt_id` and its `status` to be `APPROVED`. Otherwise: **receipt mismatch** or **receipt not approved**.
+2. `signed: false`: report **unsigned outcome**, not verified and not tampered. `payload_withheld: true`: report **withheld**, not verified and not tampered.
+3. Require `approval_receipt_id`, `key_id`, `alg` (`ed25519`), `signed_payload_hash`, `signature_b64`, `payload_bytes_b64`. Otherwise **malformed**.
+4. SHA-256 of the decoded bytes must equal `signed_payload_hash` (**payload hash mismatch**); the parsed object's `signatureKeyId` must equal `key_id` (**malformed**); re-canonicalizing it under `attest_v1` must reproduce the bytes (**canonical mismatch**).
+5. Resolve the key and verify Ed25519 over the digest, exactly as 6.2 steps 5 and 6.
+6. Require the signed `approvalReceiptId` to equal the envelope's, and apply the 9.2 consistency rules (a failure here is a policy failure, not tampering).
+
+`tools/verify.mjs <attestation.json> <keys.json> --receipt <receipt.json>` implements this.
+
+### 9.6 What an attestation proves
+
+That the issuer recorded this outcome for this authorization at `createdAt`, under its key. `succeeded` and `failed` attest what the action's adapter returned to the issuer, not the state of the target system; `unknown` says the issuer does not know. An authorization with no attestation is "authorized, execution not confirmed by the issuer". The receipt alone still proves only the authorization.
+
+## 10. Lifecycle around the receipt
 
 - **Expiry.** `expiresAt` bounds redemption of an approval by a CI gate or an agent retry. It does not expire the evidence; an expired receipt still verifies.
 - **Redemption.** The issuer's verify endpoint can redeem an approval atomically once. Redemption state is unsigned issuer metadata.
 - **Idempotency.** A resubmitted execute-lane request with the same `idemKey` returns the existing receipt; a `DENIED` receipt is terminal for its key (kill-switch denials say so in `reasonCodes` with `KILL_SWITCH_DENIAL_TERMINAL`). A changed action under a reused key is refused with a fresh `DENIED` receipt (`APPROVAL_ARTIFACT_MISMATCH`).
 - **Re-approval.** An expired deploy-gate approval can be renewed for the unchanged scope; the renewal is a new receipt with its own id and `DEPLOY_GATE_REAPPROVED` in `reasonCodes`, signed by the renewing decider.
 
-## 10. Security considerations
+## 11. Security considerations
 
 - **Replay.** A valid signature does not prove the receipt is for the action in front of you. Compare `requestJson` and `inputHash` to your own canonical input, and use `idemKey` or the issuer's redemption for one-time execution.
 - **Unsigned metadata.** Anything outside section 3.1 is mutable. Do not decide anything from it.
@@ -276,7 +351,7 @@ The issuer's `idemKey` uniqueness per tenant and its append-only row model are n
 - **Time.** Expiry comparisons depend on the verifier's clock. Treat expiry as information about redemption, not as a signature property.
 - **Demo scope.** Never accept `scope: demo` or key id `pp-demo-k1` as production evidence, whatever the rest of the receipt says.
 
-## 11. Conformance
+## 12. Conformance
 
 `test-vectors/` holds:
 
@@ -286,15 +361,18 @@ The issuer's `idemKey` uniqueness per tenant and its append-only row model are n
 | `approve-policy-execute-lane.json` | `APPROVED` by the policy engine on the execute lane, read-only tier | verifies |
 | `deny-kill-switch-execute-lane.json` | `DENIED` under a global freeze before policy evaluation, terminal for its key | verifies, decision `DENIED` |
 | `tampered-approve-human-deploy-gate.json` | vector 1 with `summary` edited after signing and the hash recomputed | fails at the signature |
+| `approve-human-execute-lane-refund.json`, `approve-human-execute-lane-create-pr.json` | `APPROVED` by a named human on the execute lane, signed at the decision before the action ran (`credentialed`, 15-minute window) | verify |
+| `attestations/attest-succeeded-policy-execute-lane.json`, `attest-failed-human-execute-lane-create-pr.json`, `attest-unknown-human-execute-lane-refund.json` | one execution attestation per outcome, each naming its receipt vector (`receipt_vector`) | verify with `--receipt` (section 9.5) |
+| `attestations/tampered-attest-failed-human-execute-lane-create-pr.json` | the failed attestation rewritten as succeeded after signing, hash recomputed | fails at the signature |
 | `live-deploy-gate-approve.json` | a real production receipt captured from the public artifact endpoint on 2026-09-08 | verifies against `live-keys.json` |
 | `keys.json`, `live-keys.json` | the key sets, in the published shape | |
 
-The three generated vectors are produced by `tools/generate-vectors.mjs` from fixed inputs with the repository's test key; CI regenerates them and fails on drift. Their bytes were checked byte for byte against the issuer's own canonicalization code. An implementation claims conformance to this document when it reproduces every expected result above, passes `node --test "test/*.test.mjs"`, and validates each verified payload against `schema/receipt-v2.json`.
+The three generated vectors are produced by `tools/generate-vectors.mjs` from fixed inputs with the repository's test key; CI regenerates them and fails on drift. Their bytes were checked byte for byte against the issuer's own canonicalization code. An implementation claims conformance to this document when it reproduces every expected result above, passes `node --test "test/*.test.mjs"`, and validates each verified payload against `schema/receipt-v2.json` (receipts) or `schema/attestation-v1.json` (attestations).
 
-## 12. Relationship to other documents
+## 13. Relationship to other documents
 
 - `RECEIPT-FORMAT-V1.md`: frozen, with errata in 5.5.
 - `VERIFY.md`: the nine-line verification and the online paths.
 - `MAPPINGS.md`: which fields back which controls.
 - `VERSIONING.md`: how this format changes.
-- In `permission-protocol/app`: `docs/receipt-standard.md` (the SDK-facing receipt object and status mapping), `permission-protocol-sdk/spec/hashable-payload-v1.md` (`inputHash` on the execute lane), `src/lib/permission-protocol-v1/signing/canonicalize.ts` (the frozen field lists this document transcribes).
+- In `permission-protocol/app`: `docs/receipt-standard.md` (the SDK-facing receipt object and status mapping), `permission-protocol-sdk/spec/hashable-payload-v1.md` (`inputHash` on the execute lane), `src/lib/permission-protocol-v1/signing/canonicalize.ts` (the frozen field lists this document transcribes), `src/lib/permission-router/execution-attestation.ts` (`attest_v1`), `docs/adr/0003-authorization-before-execution.md` (why authorization precedes execution and the outcome is separate).
