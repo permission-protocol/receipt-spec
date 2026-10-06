@@ -24,6 +24,10 @@
         "redeemed_at": { "type": ["string", "null"] }
       }
     },
+    "attestation_artifact": {
+      "type": ["object", "null"],
+      "description": "Execute-lane receipts only (SPEC.md section 9.4): the execution attestation envelope, or null when the receipt has none. Verify it with SPEC.md section 9.5 after the receipt; schema/attestation-v1.json describes its decoded payload."
+    },
     "keys_url": {
       "type": "string",
       "description": "Where the issuer publishes its key set. Present on the public artifact. Verifiers MAY pin their own copy instead."

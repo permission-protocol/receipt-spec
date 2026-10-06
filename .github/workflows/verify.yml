@@ -20,6 +20,13 @@ jobs:
           if node tools/verify.mjs test-vectors/tampered-approve-human-deploy-gate.json test-vectors/keys.json; then
             echo "tampered vector verified; that is a bug" && exit 1
           fi
+      - name: Verify one execution attestation through the reference CLI
+        run: node tools/verify.mjs test-vectors/attestations/attest-succeeded-policy-execute-lane.json test-vectors/keys.json --receipt test-vectors/approve-policy-execute-lane.json
+      - name: The tampered attestation must fail
+        run: |
+          if node tools/verify.mjs test-vectors/attestations/tampered-attest-failed-human-execute-lane-create-pr.json test-vectors/keys.json --receipt test-vectors/approve-human-execute-lane-create-pr.json; then
+            echo "tampered attestation verified; that is a bug" && exit 1
+          fi
       - name: Vectors are regenerated deterministically from their inputs
         run: |
           node tools/generate-vectors.mjs --check

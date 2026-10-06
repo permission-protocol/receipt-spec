@@ -1,4 +1,4 @@
-// Generates the signed test vectors under test-vectors/ (SPEC.md section 11).
+// Generates the signed test vectors under test-vectors/ (SPEC.md section 12).
 //
 //   node tools/generate-vectors.mjs           # write the files
 //   node tools/generate-vectors.mjs --check   # fail if the files on disk differ
@@ -19,10 +19,20 @@
 // Plus 4. tampered-approve-human-deploy-gate: vector 1 with one signed field
 // edited after signing and the hash recomputed, so the only thing that can
 // catch it is the signature.
+//
+// Execution attestations (SPEC.md section 9, ADR 0003 in the app repo), under
+// test-vectors/attestations/: one signed attestation per outcome, each
+// referencing an APPROVED execute-lane receipt signed BEFORE the action ran,
+// plus a tampered one. Two more receipts mirror the human path of that order:
+//   5. approve-human-execute-lane-refund: a human approves a held refund; the
+//      authorization is signed at the decision from the live session
+//      (credentialed), with the 15-minute redemption window as expiresAt
+//      (app: src/lib/permission-router/authorized-execution.ts finalizeApprovedHold).
+//   6. approve-human-execute-lane-create-pr: the same for a pull request.
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { canonicalBytes, signingDigest } from "./canonicalize.mjs";
+import { attestationBytes, canonicalBytes, outputHash, signingDigest } from "./canonicalize.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const check = process.argv.includes("--check");
@@ -215,6 +225,103 @@ const denyKillSwitch = {
   createdAt: "2026-09-01T14:10:00.000Z",
 };
 
+const refundDecidedAt = "2026-09-01T14:20:00.000Z";
+const approveHumanRefund = {
+  id: "cmvec05humanrefund00000000001",
+  companyId: TENANT,
+  idemKey: refundRequest.hashes.inputHash,
+  agentId: "ops-agent",
+  runId: "run_c0ffee01",
+  requestJson: executeRequestJson(refundRequest),
+  inputHash: refundRequest.hashes.inputHash,
+  status: "APPROVED",
+  riskTier: "C_EXECUTE_WITH_APPROVAL",
+  policyVersion: "pol_v1_hardcoded",
+  reasonCodes: JSON.stringify(["UNREGISTERED_TOOL:stripe", "IRREVERSIBLE:IRREVERSIBLE", "PRODUCTION_ENV", "PRODUCTION_REQUIRES_APPROVAL"]),
+  summary: "Production environment requires human approval",
+  deciderId: "user:usr_vec_alice_00000001",
+  deciderDisplay: "alice-example",
+  deciderAuthMethod: "session_stepup_webauthn",
+  resolutionType: "allow_once",
+  attributionConfidence: "credentialed",
+  scope: "production",
+  receiptVersion: 2,
+  canonicalization: "jcs_v2",
+  signatureAlg: "ed25519",
+  signatureKeyId: KEY_ID,
+  expiresAt: "2026-09-01T14:35:00.000Z", // decision + 15-minute redemption window
+  createdAt: "2026-09-01T14:12:00.000Z", // the hold was created; signed at the decision
+};
+
+const createPrRequest = {
+  tenantId: TENANT,
+  actor: { agentId: "dev-agent", runId: "run_9a8b7c6d" },
+  intent: { name: "github_create_pr:create_pr", summary: "Open a pull request bumping the lockfile", category: "code_change" },
+  action: { tool: "github_create_pr", operation: "create_pr", parameters: { repo: "acme/billing-api", head: "deps/lockfile", base: "main", title: "Bump lockfile" } },
+  context: { environment: "production", reversibility: "REVERSIBLE" },
+  hashes: { inputHash: "" },
+};
+createPrRequest.hashes.inputHash = executeInputHash(createPrRequest);
+const approveHumanCreatePr = {
+  id: "cmvec06humancreatepr000000001",
+  companyId: TENANT,
+  idemKey: createPrRequest.hashes.inputHash,
+  agentId: "dev-agent",
+  runId: "run_9a8b7c6d",
+  requestJson: executeRequestJson(createPrRequest),
+  inputHash: createPrRequest.hashes.inputHash,
+  status: "APPROVED",
+  riskTier: "C_EXECUTE_WITH_APPROVAL",
+  policyVersion: "pol_v1_hardcoded",
+  reasonCodes: JSON.stringify(["TOOL_EFFECT:write", "PRODUCTION_ENV", "PRODUCTION_REQUIRES_APPROVAL"]),
+  summary: "Production environment requires human approval",
+  deciderId: "user:usr_vec_alice_00000001",
+  deciderDisplay: "alice-example",
+  deciderAuthMethod: "session",
+  resolutionType: "allow_once",
+  attributionConfidence: "credentialed",
+  scope: "production",
+  receiptVersion: 2,
+  canonicalization: "jcs_v2",
+  signatureAlg: "ed25519",
+  signatureKeyId: KEY_ID,
+  expiresAt: "2026-09-01T14:45:00.000Z",
+  createdAt: "2026-09-01T14:28:00.000Z",
+};
+
+// The attestations, as the stored rows look (null = absent from the bytes).
+const attestationBase = { attestationVersion: 1, canonicalization: "attest_v1", signatureAlg: "ed25519", signatureKeyId: KEY_ID };
+const attestSucceeded = {
+  ...attestationBase,
+  approvalReceiptId: approvePolicy.id,
+  outcome: "succeeded",
+  toolCallId: "tc_vec_ledger_read_0001",
+  outputHash: outputHash({ accountId: "acct_demo_123", balanceCents: 125000, currency: "USD" }),
+  startedAt: "2026-09-01T14:05:00.120Z",
+  finishedAt: "2026-09-01T14:05:00.480Z",
+  createdAt: "2026-09-01T14:05:00.512Z",
+};
+const attestFailed = {
+  ...attestationBase,
+  approvalReceiptId: approveHumanCreatePr.id,
+  outcome: "failed",
+  toolCallId: null,
+  outputHash: null,
+  startedAt: "2026-09-01T14:31:10.000Z",
+  finishedAt: "2026-09-01T14:31:11.250Z",
+  createdAt: "2026-09-01T14:31:11.300Z",
+};
+const attestUnknown = {
+  ...attestationBase,
+  approvalReceiptId: approveHumanRefund.id,
+  outcome: "unknown",
+  toolCallId: null,
+  outputHash: null,
+  startedAt: null,
+  finishedAt: null,
+  createdAt: "2026-09-01T14:42:00.000Z", // the reconciler, after the 15-minute stale window
+};
+
 // ---------------------------------------------------------------------------
 // Sign and wrap.
 // ---------------------------------------------------------------------------
@@ -274,6 +381,64 @@ const tamperedEnvelope = envelope(
 );
 tamperedEnvelope.artifact.status = tamperedRow.status;
 
+function attestationEnvelope(row, receiptFile, { description, source }, override = {}) {
+  const bytes = attestationBytes(row);
+  const digest = signingDigest(bytes);
+  const signature = sign(null, digest, privateKey);
+  const payloadBytes = override.bytes ?? bytes;
+  return {
+    description,
+    generated_by: "node tools/generate-vectors.mjs",
+    mirrors: source,
+    receipt_vector: receiptFile,
+    attestation_artifact: {
+      approval_receipt_id: row.approvalReceiptId,
+      outcome: override.outcome ?? row.outcome,
+      attestation_version: row.attestationVersion,
+      canonicalization: row.canonicalization,
+      key_id: KEY_ID,
+      alg: "ed25519",
+      signed_payload_hash: (override.digest ?? digest).toString("hex"),
+      signature_b64: signature.toString("base64"),
+      payload_bytes_b64: payloadBytes.toString("base64"),
+      issued_at: row.createdAt,
+    },
+    keys_url: "test-vectors/keys.json",
+    verification_hint:
+      "Verify the receipt named by approval_receipt_id first (SPEC.md section 6.2). Then verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under attest_v1, check approvalReceiptId equals that receipt's id, and verify the Ed25519 signature over the digest with the public key for key_id.",
+    attestation: JSON.parse(payloadBytes.toString("utf8")),
+  };
+}
+
+// Tampered: a failed outcome rewritten as succeeded after signing, the hash
+// recomputed, the original signature kept.
+const tamperedAttestationRow = { ...attestFailed, outcome: "succeeded" };
+const tamperedAttestationBytes = attestationBytes(tamperedAttestationRow);
+
+const attestationVectors = {
+  "attest-succeeded-policy-execute-lane.json": attestationEnvelope(attestSucceeded, "approve-policy-execute-lane.json", {
+    description: "succeeded: the router signed the policy clearance, ran the read once, and attested what the adapter returned. outputHash commits to the canonical output; the output itself is not in the attestation.",
+    source: "app src/lib/permission-router/authorized-execution.ts (executeAuthorized), execution-attestation.ts",
+  }),
+  "attest-failed-human-execute-lane-create-pr.json": attestationEnvelope(attestFailed, "approve-human-execute-lane-create-pr.json", {
+    description: "failed: a human authorized the pull request at the decision; the adapter reported failure. The receipt stays APPROVED: it records the authorization, the attestation records the outcome. No output, so no outputHash.",
+    source: "app src/lib/permission-router/authorized-execution.ts (executeAuthorized, adapter threw)",
+  }),
+  "attest-unknown-human-execute-lane-refund.json": attestationEnvelope(attestUnknown, "approve-human-execute-lane-refund.json", {
+    description: "unknown: the refund was authorized and claimed for execution, and the process stopped before recording the outcome. After the 15-minute stale window the reconciler records unknown with no start, no finish and no output. Whether the money moved is not known to the issuer; unknown is never upgraded.",
+    source: "app src/lib/permission-router/reconcile.ts (reconcileStaleExecution)",
+  }),
+  "tampered-attest-failed-human-execute-lane-create-pr.json": attestationEnvelope(
+    attestFailed,
+    "approve-human-execute-lane-create-pr.json",
+    {
+      description: "The failed attestation with outcome rewritten to succeeded after signing and signed_payload_hash recomputed. Verification MUST fail at the signature.",
+      source: "SPEC.md section 9.5, tamper evidence",
+    },
+    { bytes: tamperedAttestationBytes, digest: signingDigest(tamperedAttestationBytes), outcome: "succeeded" }
+  ),
+};
+
 const vectors = {
   "approve-human-deploy-gate.json": humanEnvelope,
   "approve-policy-execute-lane.json": envelope(approvePolicy, {
@@ -285,6 +450,14 @@ const vectors = {
     source: "app src/lib/permission-router/kill-switch.ts, execute.ts (step 4.5)",
   }),
   "tampered-approve-human-deploy-gate.json": tamperedEnvelope,
+  "approve-human-execute-lane-refund.json": envelope(approveHumanRefund, {
+    description: "APPROVED by a named human on the execute lane, signed at the decision from the live session (credentialed) and before the action ran, with the 15-minute redemption window as expiresAt. Its execution attestation is test-vectors/attestations/attest-unknown-human-execute-lane-refund.json.",
+    source: "app src/lib/permission-router/authorized-execution.ts (finalizeApprovedHold), receipt-signing.ts",
+  }),
+  "approve-human-execute-lane-create-pr.json": envelope(approveHumanCreatePr, {
+    description: "APPROVED by a named human on the execute lane, signed at the decision before the action ran. Its execution attestation is test-vectors/attestations/attest-failed-human-execute-lane-create-pr.json.",
+    source: "app src/lib/permission-router/authorized-execution.ts (finalizeApprovedHold), receipt-signing.ts",
+  }),
   "keys.json": {
     description: "Key set for the generated vectors, in the shape of https://app.permissionprotocol.com/.well-known/permission-protocol/keys.json. Test key only; it signs nothing outside this repository.",
     issuer: "https://github.com/permission-protocol/receipt-spec/test-vectors",
@@ -301,8 +474,14 @@ const vectors = {
   },
 };
 
+const allVectors = {
+  ...vectors,
+  ...Object.fromEntries(Object.entries(attestationVectors).map(([name, value]) => [`attestations/${name}`, value])),
+};
+
 let drift = 0;
-for (const [name, value] of Object.entries(vectors)) {
+if (!check) mkdirSync(join(root, "test-vectors", "attestations"), { recursive: true });
+for (const [name, value] of Object.entries(allVectors)) {
   const path = join(root, "test-vectors", name);
   const text = `${JSON.stringify(value, null, 2)}\n`;
   if (check) {

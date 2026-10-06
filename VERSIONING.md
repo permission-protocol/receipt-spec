@@ -11,6 +11,8 @@ A receipt carries two version fields inside its signed bytes:
 | `receiptVersion` | `1`, `2` (integer) | The data model: which fields exist and what they mean. |
 | `canonicalization` | `jcs_v1`, `jcs_v2` | The exact signed field set and the byte construction the signature covers. |
 
+Execution attestations (SPEC.md section 9) are separate signed objects with their own pair: `attestationVersion` (`1`) and `canonicalization` (`attest_v1`). The same rules below apply to them; an attestation identifier is never a `jcs_v*` value and a receipt identifier is never an `attest_v*` value.
+
 The rule that governs both: **a canonicalization version is frozen the moment a receipt is signed under it.** The bytes it produces are the signing truth for every receipt stamped with that value, forever. A new signed field set, a changed type for a signed field, or a changed serialization rule requires a new `canonicalization` string. An existing one is never edited.
 
 A verifier dispatches on the receipt's own `canonicalization` value and rebuilds the bytes under the rules that value names. That is why a receipt signed in 2026 verifies in 2036 with or without Permission Protocol.
@@ -60,6 +62,8 @@ Any of the following is a breaking change and gets a new `receiptVersion` and a 
 | 2026-07-09 | Decider bound inside the signature: six attribution fields added | `receiptVersion` `2`, `jcs_v2` |
 | 2026-08-11 | Execute-lane decisions signed at decision time with a role-class decider | no version change (values only) |
 | 2026-09-08 | `SPEC.md` documents the format as emitted, including the digest signature input and the string types the hosted service uses; `prev` reserved for `jcs_v3` | no version change (documentation) |
+| 2026-10-03 | Step-up signing values `session_stepup_webauthn` and `session_reauth` for `deciderAuthMethod`, observed on production receipts by this date; documented here | no version change (values only) |
+| 2026-10 | Execution attestations: the execute lane signs the authorization before the action and records the outcome as a separate signed attestation (ADR 0003); execute-lane human approvals signed at the decision are `credentialed` | `attestationVersion` `1`, `attest_v1` (attestations); receipts unchanged |
 
 ## Reserved names
 
