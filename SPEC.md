@@ -317,13 +317,13 @@ Served as `attestation_artifact` next to `artifact` for an execute-lane receipt 
 ```
 
 - The owning tenant's `GET /api/v1/receipts/<receipt_id>/artifact` carries `payload_bytes_b64`.
-- The public `/r/<receipt_id>.json` carries `payload_withheld: true` instead (digest and signature only), for the reason in 9.2. Its `outcome` is then an unsigned statement of the issuer.
+- The public `/r/<receipt_id>.json` carries `payload_withheld: true` instead (digest and signature only), for the reason in 9.2. Its `outcome` is then an unsigned statement of the issuer, given only when the issuer's own full verification of the record passed, and `null` otherwise. A third party can confirm that the issuer signed the digest, not what it contains; the workspace verifies the outcome offline from its own artifact.
 - An unsigned record is `{ "approval_receipt_id", "outcome", "attestation_version": 1, "signed": false, "signing_failed": true, "issued_at" }`, with no signature fields.
 
 ### 9.5 Verify procedure
 
 1. Verify the receipt the attestation names (section 6.2). Require its `id` to equal `approval_receipt_id` and its `status` to be `APPROVED`. Otherwise: **receipt mismatch** or **receipt not approved**.
-2. `signed: false`: report **unsigned outcome**, not verified and not tampered. `payload_withheld: true`: report **withheld**, not verified and not tampered.
+2. `signed: false`: report **unsigned outcome**, not verified and not tampered. `payload_withheld: true`: report **withheld**, not verified and not tampered (whatever `outcome` says).
 3. Require `approval_receipt_id`, `key_id`, `alg` (`ed25519`), `signed_payload_hash`, `signature_b64`, `payload_bytes_b64`. Otherwise **malformed**.
 4. SHA-256 of the decoded bytes must equal `signed_payload_hash` (**payload hash mismatch**); the parsed object's `signatureKeyId` must equal `key_id` (**malformed**); re-canonicalizing it under `attest_v1` must reproduce the bytes (**canonical mismatch**).
 5. Resolve the key and verify Ed25519 over the digest, exactly as 6.2 steps 5 and 6.
