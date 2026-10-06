@@ -2,24 +2,63 @@
 // execution attestation (SPEC.md section 9). Dependency-free.
 //
 //   node tools/verify.mjs <artifact.json> <keys.json>
-//   node tools/verify.mjs <artifact.json> <keys.json> --request <request.json> --salt <64 hex>
+//   node tools/verify.mjs <artifact.json> <keys.json> --request <request.json> --salt <64 hex> [--summary <summary.txt>]
 //   node tools/verify.mjs <attestation.json> <keys.json> --receipt <receipt-artifact.json>
 //
 // All inputs are local files, so this runs with no network and no Permission
 // Protocol service in the loop. --request and --salt (jcs_v3 receipts only)
 // open the request commitment: the file is the exact request text the issuer
 // committed to, byte for byte, and the salt its 32 bytes in hex (SPEC.md
-// section 6.7). Exit codes: 0 verified, 1 signature invalid, 2 key not found
-// or revoked, 3 malformed, 4 payload does not match its hash or its own
-// canonicalization, 8 canonicalization or projection tag not supported by this
-// verifier (unverifiable here, not tampered), 9 the signed projection breaks
-// its allowlist (policy failure; the signature is valid), 10 the supplied
-// request and salt do not open the commitment or do not rebuild the
-// projection. Attestations add 5, 6 and 7 (section 9.5).
+// section 6.7). --summary (with them) names a file holding, as exact text, the
+// summary the issuer states for the receipt (its owner artifact's `summary`):
+// it must be the summary the commitment binds under receiptSummary. Exit
+// codes: 0 verified, 1 signature invalid, 2 key not found or revoked, 3
+// malformed, 4 payload does not match its hash or its own canonicalization, 8
+// canonicalization or projection tag not supported by this verifier
+// (unverifiable here, not tampered), 9 policy failure: the signature is valid
+// but the signed record breaks a rule of its own format (a projection outside
+// its allowlist, or a decider proof that is malformed or disagrees with the
+// signed deciderAuthMethod), 10 the supplied request, salt and summary do not
+// open the commitment: the commitment does not reproduce, the summary is not
+// the committed one, or the projection does not rebuild. Attestations add 5,
+// 6 and 7 (section 9.5).
 import { createPublicKey, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { CanonicalizationUnsupportedError, attestationBytes, canonicalBytes, requestCommitment, signingDigest } from "./canonicalize.mjs";
+import {
+  CanonicalizationUnsupportedError,
+  RECEIPT_SUMMARY_REQUEST_KEY,
+  attestationBytes,
+  canonicalBytes,
+  requestCommitment,
+  signingDigest,
+} from "./canonicalize.mjs";
+import { checkDeciderProof } from "./decider-proof.mjs";
 import { buildPublicProjection, checkPublicProjection, readProjectionTag } from "./public-projection.mjs";
+
+/**
+ * Exit code per failure code (SPEC.md section 6.2). Receipts: 1 to 4 and 8 to
+ * 10; attestations add 5 to 7 (section 9.5).
+ */
+export const EXIT_CODES = Object.freeze({
+  SIGNATURE_INVALID: 1,
+  KEY_NOT_FOUND: 2,
+  KEY_REVOKED: 2,
+  MALFORMED: 3,
+  PAYLOAD_HASH_MISMATCH: 4,
+  CANONICAL_MISMATCH: 4,
+  ATTESTATION_UNSIGNED: 5,
+  PAYLOAD_WITHHELD: 6,
+  ATTESTATION_INCONSISTENT: 7,
+  CANONICALIZATION_UNSUPPORTED: 8,
+  PROJECTION_UNSUPPORTED: 8,
+  PROJECTION_NOT_ALLOWED: 9,
+  DECIDER_PROOF_MISMATCH: 9,
+  DECIDER_PROOF_INVALID: 9,
+  REQUEST_COMMITMENT_UNAVAILABLE: 10,
+  REQUEST_COMMITMENT_MISMATCH: 10,
+  COMMITTED_SUMMARY_MISMATCH: 10,
+  PUBLIC_PROJECTION_MISMATCH: 10,
+});
 
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
@@ -34,9 +73,13 @@ export function publicKeyFromRaw(publicKeyB64) {
  * Verify an artifact envelope against a key set. Returns { ok: true, payload }
  * or { ok: false, code, message }. Never throws on bad input.
  *
- * jcs_v3 receipts also get the projection check (SPEC.md section 6.7) and, when
- * options.opening = { requestJson, salt } is given, the commitment opening;
- * the result then carries `projection`, `projectionTag` and `commitmentOpened`.
+ * jcs_v3 receipts also get the projection check and the decider proof check
+ * (SPEC.md section 6.7, steps 1 and 2) and, when options.opening =
+ * { requestJson, salt, summary? } is given, the commitment opening (step 3);
+ * the result then carries `projection`, `projectionTag`, `commitmentOpened`
+ * and, once opened, `committedSummary`. `opening.summary` is the summary the
+ * issuer states for the receipt: a string, null for "none", or undefined when
+ * the caller holds none (then only the committed one is reported).
  */
 export function verifyArtifact(envelope, keySet, options = {}) {
   const artifact = envelope?.artifact;
@@ -103,27 +146,44 @@ export function verifyArtifact(envelope, keySet, options = {}) {
     return result;
   }
 
-  // jcs_v3, section 6.7. Signed and intact; now the projection must be one
-  // the build rule could have produced for its tag (a policy failure if not:
-  // the signature is valid, the issuer published a field it must not have).
+  // jcs_v3, section 6.7. Signed and intact. Step 1: the projection must be
+  // one the build rule could have produced for its tag (a policy failure if
+  // not: the signature is valid, the issuer published a field it must not
+  // have). Step 2: the signed decider proof must agree with the signed auth
+  // method and keep its frozen shape (a policy failure if not).
   const checked = checkPublicProjection(payload.publicProjectionJson);
-  if (!checked.ok) return fail(checked.code === "PROJECTION_UNSUPPORTED" ? 8 : 9, checked.code, checked.message);
-  if (options.opening) {
-    const problem = openRequestCommitment(payload, options.opening.requestJson, options.opening.salt);
-    if (problem) return fail(10, problem.code, problem.message);
-  }
-  return { ...result, projection: checked.projection, projectionTag: checked.tag, commitmentOpened: Boolean(options.opening) };
+  if (!checked.ok) return fail(EXIT_CODES[checked.code], checked.code, checked.message);
+  const proofProblem = checkDeciderProof(payload.deciderAuthMethod, payload.deciderProof);
+  if (proofProblem) return fail(EXIT_CODES[proofProblem.code], proofProblem.code, proofProblem.message);
+  const v3 = { ...result, projection: checked.projection, projectionTag: checked.tag, deciderProof: payload.deciderProof ?? null, commitmentOpened: false };
+  if (!options.opening) return v3;
+  // Step 3, the holder of the request and its salt.
+  const { requestJson, salt, summary } = options.opening;
+  const problem = openRequestCommitment(payload, requestJson, salt, { summary });
+  if (problem) return fail(EXIT_CODES[problem.code], problem.code, problem.message);
+  return { ...v3, commitmentOpened: true, committedSummary: committedSummaryOf(requestJson) };
+}
+
+/** The summary an opened request commits (receiptSummary), or null when it commits none. */
+export function committedSummaryOf(requestJson) {
+  const request = JSON.parse(requestJson);
+  return Object.prototype.hasOwnProperty.call(request, RECEIPT_SUMMARY_REQUEST_KEY) ? request[RECEIPT_SUMMARY_REQUEST_KEY] : null;
 }
 
 /**
- * Open a jcs_v3 receipt's request commitment (SPEC.md section 6.7, step 2):
+ * Open a jcs_v3 receipt's request commitment (SPEC.md section 6.7, step 3):
  * the supplied request text and salt must reproduce the signed
- * requestCommitment, and the projection rebuilt from that request under the
- * signed tag must equal the signed publicProjectionJson byte for byte. Null
- * when both hold, else { code, message }. Mirrors the issuer's
- * checkReceiptV3RequestBinding (app repo, signing/receipt-v3.ts).
+ * requestCommitment; the opened request must commit the summary as the
+ * issuer's mint does (receiptSummary, a string, present exactly when there is
+ * a summary) and, when the caller states a summary (options.summary: a string,
+ * or null for none), commit exactly that one; and the projection rebuilt from
+ * the request under the signed tag must equal the signed publicProjectionJson
+ * byte for byte. Null when all hold, else { code, message }. Same checks, in
+ * the same order, as the issuer's checkReceiptV3RequestBinding (app repo,
+ * signing/receipt-v3.ts) up to its decider proof check, which every verifier
+ * runs on the signed payload instead (step 2).
  */
-export function openRequestCommitment(payload, requestJson, salt) {
+export function openRequestCommitment(payload, requestJson, salt, options = {}) {
   if (typeof payload?.requestCommitment !== "string" || payload.requestCommitment.length === 0) {
     return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "this receipt signs no request commitment" };
   }
@@ -132,6 +192,31 @@ export function openRequestCommitment(payload, requestJson, salt) {
   }
   if (salt.length !== 32 || requestCommitment(salt, requestJson) !== payload.requestCommitment) {
     return { code: "REQUEST_COMMITMENT_MISMATCH", message: "the supplied request and salt do not open the signed requestCommitment" };
+  }
+  // The committed summary (section 3.5): the issuer's mint writes receiptSummary
+  // only as a string. When the caller states a summary, it must be that one.
+  let request = null;
+  try {
+    request = JSON.parse(requestJson);
+  } catch {
+    // Not JSON: no committed summary; the projection rebuild below fails too.
+  }
+  const hasCommitted = request !== null && typeof request === "object" && !Array.isArray(request) && Object.prototype.hasOwnProperty.call(request, RECEIPT_SUMMARY_REQUEST_KEY);
+  const committed = hasCommitted ? request[RECEIPT_SUMMARY_REQUEST_KEY] : undefined;
+  if (hasCommitted && typeof committed !== "string") {
+    return { code: "COMMITTED_SUMMARY_MISMATCH", message: `the committed ${RECEIPT_SUMMARY_REQUEST_KEY} is not a string; the issuer commits a summary only as text` };
+  }
+  if (options.summary !== undefined) {
+    const stated = options.summary;
+    const holds = hasCommitted ? committed === stated : stated === null;
+    if (!holds) {
+      return {
+        code: "COMMITTED_SUMMARY_MISMATCH",
+        message: hasCommitted
+          ? `the stated summary is not the summary the commitment binds under ${RECEIPT_SUMMARY_REQUEST_KEY}`
+          : `a summary is stated, but the committed request binds none (no ${RECEIPT_SUMMARY_REQUEST_KEY})`,
+      };
+    }
   }
   const tag = typeof payload.publicProjectionJson === "string" ? readProjectionTag(payload.publicProjectionJson) : null;
   if (!tag) return { code: "PROJECTION_UNSUPPORTED", message: "the signed publicProjectionJson names no projection tag this verifier supports" };
@@ -249,7 +334,7 @@ function fail(exitCode, code, message) {
 
 function usage(message) {
   if (message) console.error(message);
-  console.error("usage: node tools/verify.mjs <artifact.json> <keys.json> [--request <request.json> --salt <64 hex>]");
+  console.error("usage: node tools/verify.mjs <artifact.json> <keys.json> [--request <request.json> --salt <64 hex> [--summary <summary.txt>]]");
   console.error("       node tools/verify.mjs <attestation.json> <keys.json> --receipt <receipt-artifact.json>");
   process.exit(64);
 }
@@ -259,7 +344,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const flags = {};
   const positional = [];
   for (let index = 0; index < args.length; index += 1) {
-    const flag = args[index].match(/^--(receipt|request|salt)$/);
+    const flag = args[index].match(/^--(receipt|request|salt|summary)$/);
     if (!flag) {
       positional.push(args[index]);
       continue;
@@ -272,11 +357,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!artifactPath || !keysPath || positional.length > 2) usage();
   if ((flags.request === undefined) !== (flags.salt === undefined)) usage("--request and --salt go together: the commitment opens with both");
   if (flags.salt !== undefined && !/^[0-9a-fA-F]{64}$/.test(flags.salt)) usage("--salt is the 32-byte salt as 64 hex characters");
-  const opening = flags.request === undefined ? undefined : { requestJson: readFileSync(flags.request, "utf8"), salt: Buffer.from(flags.salt, "hex") };
+  if (flags.summary !== undefined && flags.request === undefined) usage("--summary is checked against the opened commitment: add --request and --salt");
+  const opening =
+    flags.request === undefined
+      ? undefined
+      : {
+          requestJson: readFileSync(flags.request, "utf8"),
+          salt: Buffer.from(flags.salt, "hex"),
+          summary: flags.summary === undefined ? undefined : readFileSync(flags.summary, "utf8"),
+        };
   const envelope = JSON.parse(readFileSync(artifactPath, "utf8"));
   const keySet = JSON.parse(readFileSync(keysPath, "utf8"));
   if (envelope.attestation_artifact && !envelope.artifact) {
-    if (opening) usage("--request and --salt open a jcs_v3 receipt's commitment, not an attestation");
+    if (opening) usage("--request, --salt and --summary open a jcs_v3 receipt's commitment, not an attestation");
     if (!receiptPath) {
       console.error("an attestation is verified with the receipt it attests: add --receipt <receipt-artifact.json>");
       process.exit(64);
@@ -303,9 +396,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (result.projectionTag) {
     console.log(`projection: ${result.projectionTag}, within its allowlist`);
     console.log(
-      result.commitmentOpened
-        ? `commitment: ${result.payload.requestCommitment} opened with the supplied request and salt; the projection rebuilds from it byte for byte`
-        : `commitment: ${result.payload.requestCommitment} (not opened; the request holder opens it with --request <file> --salt <hex>)`
+      result.deciderProof
+        ? `decider proof: ${result.deciderProof.method}, consistent with ${result.payload.deciderAuthMethod}`
+        : `decider proof: none (${result.payload.deciderAuthMethod ?? "no auth method"} proves no step-up)`
     );
+    if (result.commitmentOpened) {
+      console.log(`commitment: ${result.payload.requestCommitment} opened with the supplied request and salt; the projection rebuilds from it byte for byte`);
+      const summaryText = result.committedSummary === null ? "none" : JSON.stringify(result.committedSummary);
+      console.log(`summary: ${summaryText} (committed, not in the signed bytes${opening.summary === undefined ? "; not compared with a stated summary" : "; equals the stated summary"})`);
+    } else {
+      console.log(`commitment: ${result.payload.requestCommitment} (not opened; the request holder opens it with --request <file> --salt <hex>)`);
+    }
   }
 }

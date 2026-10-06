@@ -1,18 +1,20 @@
 {
-  "description": "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 2). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting) and a 32-byte salt in hex. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
+  "description": "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 3). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting), a 32-byte salt in hex and, when present, summary: the summary the issuer states for the receipt beside the request (a string, or null for none), which must equal the committed receiptSummary. A case without summary states none and compares nothing. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH, COMMITTED_SUMMARY_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
   "generated_by": "node tools/generate-vectors.mjs",
   "cases": [
     {
       "receipt_vector": "approve-human-deploy-gate-private-repo.json",
       "request_file": "approve-human-deploy-gate-private-repo.request.json",
       "salt_hex": "864c128ef6aca8d76c3b45ababab152a20f2b24b3e0852bd77716bd6e32bd92c",
+      "summary": "Deploy gate authorization approved",
       "expected": "opened",
-      "note": "The committed request and its salt reproduce requestCommitment, and the deploy_gate/v1 projection rebuilt from the request equals the signed one."
+      "note": "The committed request and its salt reproduce requestCommitment, the stated summary is the committed receiptSummary, and the deploy_gate/v1 projection rebuilt from the request equals the signed one."
     },
     {
       "receipt_vector": "approve-human-deploy-gate-public-repo.json",
       "request_file": "approve-human-deploy-gate-public-repo.request.json",
       "salt_hex": "d0af9d27c05da6a2f5ed9b985febbd8e9c17f97489253a06fcd1e9b37db660e9",
+      "summary": "Deploy gate authorization approved",
       "expected": "opened",
       "note": "As above, for the public repository."
     },
@@ -20,6 +22,7 @@
       "receipt_vector": "approve-human-execute-lane-refund.json",
       "request_file": "approve-human-execute-lane-refund.request.json",
       "salt_hex": "c2157e1d795d7cdb4a2b8131a4117f7660fc36d79eb84c689cbf89cc923df31f",
+      "summary": "Production environment requires human approval",
       "expected": "opened",
       "note": "As above, under execute/v1."
     },
@@ -27,8 +30,16 @@
       "receipt_vector": "revoke-human-deploy-gate.json",
       "request_file": "revoke-human-deploy-gate.request.json",
       "salt_hex": "ed90a2f0577723dd3e9ef66e6a0c060acd6748a29111b89e75ac4c4e9d5dafd0",
+      "summary": "Migration window moved to Thursday; withdrawn until then",
       "expected": "opened",
-      "note": "As above, under revocation/v1."
+      "note": "As above, under revocation/v1: the revocation reason is the committed summary."
+    },
+    {
+      "receipt_vector": "approve-human-execute-lane-refund.json",
+      "request_file": "approve-human-execute-lane-refund.request.json",
+      "salt_hex": "c2157e1d795d7cdb4a2b8131a4117f7660fc36d79eb84c689cbf89cc923df31f",
+      "expected": "opened",
+      "note": "No summary stated: the opening checks the commitment and the projection, and reports the committed summary without comparing it."
     },
     {
       "receipt_vector": "approve-human-deploy-gate-private-repo.json",
@@ -52,11 +63,28 @@
       "note": "The right salt with one byte of the request changed (amountCents 480000 to 480001), a field the projection does not show."
     },
     {
+      "receipt_vector": "approve-human-deploy-gate-private-repo.json",
+      "request_file": "approve-human-deploy-gate-private-repo.request.json",
+      "salt_hex": "864c128ef6aca8d76c3b45ababab152a20f2b24b3e0852bd77716bd6e32bd92c",
+      "summary": "Deploy gate authorization approved. Amount limit raised to unlimited.",
+      "expected": "COMMITTED_SUMMARY_MISMATCH",
+      "note": "The commitment opens, but the stated summary was edited after signing: it is not the committed receiptSummary. The summary is not in the signed bytes, so only an opening catches this."
+    },
+    {
+      "receipt_vector": "revoke-human-deploy-gate.json",
+      "request_file": "revoke-human-deploy-gate.request.json",
+      "salt_hex": "ed90a2f0577723dd3e9ef66e6a0c060acd6748a29111b89e75ac4c4e9d5dafd0",
+      "summary": null,
+      "expected": "COMMITTED_SUMMARY_MISMATCH",
+      "note": "The commitment opens, but the summary is stated as none while the request commits the revocation reason."
+    },
+    {
       "receipt_vector": "outside-allowlist-approve-human-execute-lane-refund.json",
       "request_file": "approve-human-execute-lane-refund.request.json",
       "salt_hex": "575ddb145f39df9ba1ca12d76bb6cd2d784e51a2e20a073f9f711cd8f27a9259",
+      "summary": "Production environment requires human approval",
       "expected": "PUBLIC_PROJECTION_MISMATCH",
-      "note": "The commitment opens, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."
+      "note": "The commitment opens and the summary holds, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."
     }
   ]
 }

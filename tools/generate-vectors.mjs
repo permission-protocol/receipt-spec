@@ -30,39 +30,64 @@
 //      (app: src/lib/permission-router/authorized-execution.ts finalizeApprovedHold).
 //   6. approve-human-execute-lane-create-pr: the same for a pull request.
 //
-// Receipt format v3 (jcs_v3, SPEC.md sections 3.4 to 3.7 and 6.7), under
+// Receipt format v3 (jcs_v3, SPEC.md sections 3.4 to 3.8 and 6.7), under
 // test-vectors/v3/: a v3 receipt signs a salted commitment to its private
-// request and a public projection of it instead of companyId, idemKey,
-// requestJson and inputHash. Each request is built the way the issuer's mint
-// path builds it, stored as canonical text, and committed with a fixed test
-// salt (SHA-256 of "receipt-spec jcs_v3 test salt: <vector name>"; the issuer
-// draws 32 random bytes per receipt). The commitment, the projection, the
+// request, a public projection of it and, for a decider who stepped up, a
+// decider proof, instead of companyId, idemKey, requestJson, inputHash and
+// summary. Each request is built the way the issuer's mint path builds it, as
+// canonical text; the mint adds the summary under receiptSummary and commits
+// the result with a fixed test salt (SHA-256 of "receipt-spec jcs_v3 test
+// salt: <vector name>"; the issuer draws 32 random bytes per receipt). The
+// decider proof is built from the stored step-up evidence by the issuer's rule
+// (tools/decider-proof.mjs). The commitment, the projection, the proof, the
 // bytes and the signature are all computed here from those inputs:
 //   v3/approve-human-deploy-gate-private-repo: a human approves a deploy on a
-//      private repository; the projection carries no repository identity.
+//      private repository after a passkey step-up (webauthn decider proof);
+//      the projection carries no repository identity.
 //   v3/approve-human-deploy-gate-public-repo: a second approver completes a
-//      two-approver rule on a public repository; the projection carries the
-//      repository-identity (†) paths and the recorded decisions without user ids.
-//   v3/approve-human-execute-lane-refund: a human approves a held refund; the
-//      projection carries the intent and action names, never the parameters.
+//      two-approver rule on a public repository after a fresh GitHub sign-in
+//      (reauth decider proof); the projection carries the repository-identity
+//      (†) paths and the recorded decisions without user ids.
+//   v3/approve-human-execute-lane-refund: a human approves a held refund over
+//      a plain session (no proof); the projection carries the intent and action
+//      names, never the parameters.
 //   v3/revoke-human-deploy-gate: the private-repository approval revoked; the
-//      revocation lane, DENIED, the reason signed as the public summary.
+//      revocation lane, DENIED, the reason committed as the summary.
 //   v3/tampered-approve-human-deploy-gate-private-repo: the projection's commit
 //      SHA edited after signing, hash recomputed: fails at the signature.
 //   v3/outside-allowlist-approve-human-execute-lane-refund: validly signed with
 //      the test key over a projection that also carries action.parameters,
 //      which no issuer may publish: a verifier rejects it (PROJECTION_NOT_ALLOWED).
+//   v3/decider-proof-mismatch-approve-human-execute-lane-refund: validly signed
+//      over a webauthn decider proof for a decider whose signed auth method is
+//      session, which proves no step-up (DECIDER_PROOF_MISMATCH).
+//   v3/non-canonical-proof-approve-human-execute-lane-refund: validly signed
+//      over a webauthn decider proof that also carries the authenticator's
+//      signature counter, a key outside the proof's frozen shape
+//      (DECIDER_PROOF_INVALID).
 //   v3/openings/: the private side, which only test vectors publish: each
 //      committed request as its exact text, and openings.json, the commitment
-//      openings with their salts and expected results.
+//      openings with their salts, the summary stated beside each, and the
+//      expected results.
+//
+//   node tools/generate-vectors.mjs --inputs <file>
+// also writes the mint inputs of every v3 vector an issuer can produce (the
+// request before the mint, the summary, the stored step-up evidence, the salt,
+// the decider and the signed fields), so the issuer's own signer can sign the
+// same inputs with the test key and be compared byte for byte (SPEC.md
+// section 12).
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { attestationBytes, canonicalBytes, outputHash, requestCommitment, signingDigest } from "./canonicalize.mjs";
+import { attestationBytes, canonicalBytes, committedRequestJson, outputHash, requestCommitment, signingDigest } from "./canonicalize.mjs";
+import { deciderProofForSigning } from "./decider-proof.mjs";
 import { PROJECTION_TAG_BY_LANE, buildPublicProjection } from "./public-projection.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const check = process.argv.includes("--check");
+const inputsIndex = process.argv.indexOf("--inputs");
+const inputsPath = inputsIndex === -1 ? null : process.argv[inputsIndex + 1];
+if (inputsIndex !== -1 && !inputsPath) throw new Error("--inputs needs a file path");
 
 const KEY_ID = "pp-test-2026-q2";
 const privateKey = createPrivateKey(readFileSync(join(root, "fixtures/keypair-test/private-key.pem")));
@@ -502,7 +527,7 @@ const vectors = {
 };
 
 // ---------------------------------------------------------------------------
-// Receipt format v3 (jcs_v3): SPEC.md sections 3.4 to 3.7 and 6.7.
+// Receipt format v3 (jcs_v3): SPEC.md sections 3.4 to 3.8 and 6.7.
 // ---------------------------------------------------------------------------
 
 /** A file published as its exact text (a committed request), not as JSON. */
@@ -516,6 +541,11 @@ class ExactText {
 const v3Salt = (name) => createHash("sha256").update(`receipt-spec jcs_v3 test salt: ${name}`, "utf8").digest();
 
 const V3_BASE = { receiptVersion: 3, canonicalization: "jcs_v3", signatureAlg: "ed25519", signatureKeyId: KEY_ID };
+
+/** A fixed lowercase SHA-256 hex digest standing in for one the issuer's passkey ceremony records. */
+const evidenceHash = (label) => sha256hex(`receipt-spec jcs_v3 test evidence: ${label}`);
+const RP_ID = "app.permissionprotocol.com";
+const RP_ORIGIN = "https://app.permissionprotocol.com";
 
 /**
  * Deploy-gate lane under v3: buildDeployGateReceiptRequestJson (app
@@ -561,6 +591,24 @@ const v3PrivateScope = {
 };
 const v3PrivateScopeHash = deployGateScopeHash(v3PrivateScope);
 const v3PrivateCreatedAt = "2026-10-06T09:00:00.000Z";
+// The passkey step-up the issuer stored for this decision, in the shape its
+// passkey verification returns. The signed proof keeps the listed keys only:
+// counter, boundRequestId and boundScopeHash (an unsalted hash over the
+// private scope) stay behind (SPEC.md section 3.8).
+const v3PrivatePasskeyEvidence = {
+  method: "webauthn",
+  credentialIdHash: evidenceHash("alice passkey credential id"),
+  challengeHash: evidenceHash("vec07 assertion challenge"),
+  authenticatorDataHash: evidenceHash("vec07 authenticator data"),
+  userVerified: true,
+  counter: 17,
+  rpId: RP_ID,
+  origin: RP_ORIGIN,
+  boundRequestId: v3PrivateRequestId,
+  boundScopeHash: v3PrivateScopeHash,
+  reviewGeneration: 1,
+  verifiedAt: "2026-10-06T08:59:41.000Z",
+};
 const v3PrivateExpiresAt = "2026-10-06T09:15:00.000Z";
 const v3PrivateRequestJson = deployGateRequestJsonV3({
   requestId: v3PrivateRequestId,
@@ -606,7 +654,7 @@ const v3ApprovePrivate = {
   companyId: TENANT, // stored, not signed under jcs_v3
   idemKey: `deploy-gate:${v3PrivateRequestId}:${v3PrivateScopeHash}`, // stored, not signed
   inputHash: v3PrivateScopeHash, // stored, not signed
-  requestJson: v3PrivateRequestJson, // stored, not signed: committed
+  requestJson: v3PrivateRequestJson, // handed to the mint; the stored, committed text adds the summary
   lane: "deploy_gate",
   agentId: "github-actions",
   runId: "run_18533200417",
@@ -618,6 +666,7 @@ const v3ApprovePrivate = {
   deciderId: "user:usr_vec_alice_00000001",
   deciderDisplay: "alice-example",
   deciderAuthMethod: "session_stepup_webauthn",
+  stepUpEvidence: v3PrivatePasskeyEvidence, // stored beside the decision, not signed; the proof is built from it
   resolutionType: "allow_once",
   attributionConfidence: "credentialed",
   scope: "production",
@@ -684,7 +733,7 @@ const v3PublicRequestJson = deployGateRequestJsonV3({
     requirements: [{ ruleId: "release-approvers", required: 2, approvers: ["user:usr_vec_alice_00000001", "user:usr_vec_bob_00000002"] }],
     recordedDecisions: [
       { userId: "user:usr_vec_alice_00000001", displayName: "alice-example", authMethod: "session", at: "2026-10-06T10:21:00.000Z" },
-      { userId: "user:usr_vec_bob_00000002", displayName: "bob-example", authMethod: "session_stepup_webauthn", at: "2026-10-06T10:30:00.000Z" },
+      { userId: "user:usr_vec_bob_00000002", displayName: "bob-example", authMethod: "session_reauth", at: "2026-10-06T10:30:00.000Z" },
     ],
   },
   enrichmentSnapshot: {
@@ -715,7 +764,10 @@ const v3ApprovePublic = {
   summary: "Deploy gate authorization approved",
   deciderId: "user:usr_vec_bob_00000002",
   deciderDisplay: "bob-example",
-  deciderAuthMethod: "session_stepup_webauthn",
+  deciderAuthMethod: "session_reauth",
+  // The re-authentication the step-up guard accepted: a GitHub sign-in at
+  // most maxAgeMs old when the decision was made.
+  stepUpEvidence: { method: "reauth", authTime: "2026-10-06T10:27:12.000Z", maxAgeMs: 300000, verifiedAt: "2026-10-06T10:29:58.000Z" },
   resolutionType: "allow_once",
   attributionConfidence: "credentialed",
   scope: "production",
@@ -761,9 +813,10 @@ const v3ApproveRefund = {
 
 // v3/revoke-human-deploy-gate: revokes v3/approve-human-deploy-gate-private-repo
 // (app revoke route): the scope is copied from the revoked receipt's request,
-// visibility included. deciderDisplay is the revoker's internal user id, as
-// the route at app commit c655e8d5 signs it (later builds sign the GitHub
-// handle when the user has one; the format is the same either way).
+// visibility included. The reason is the summary, committed under
+// receiptSummary and also kept in metadata.reason; neither is projected.
+// deciderDisplay is the revoker's GitHub handle, as the route signs it from
+// app commit 6e611d95 on (earlier builds signed the internal user id).
 const v3RevokeReason = "Migration window moved to Thursday; withdrawn until then";
 const v3RevokeRequestJson = canonicalJson({
   intent: { name: "authorization_revocation", summary: "Authorization withdrawn" },
@@ -786,7 +839,7 @@ const v3Revoke = {
   reasonCodes: null,
   summary: v3RevokeReason,
   deciderId: "user:usr_vec_alice_00000001",
-  deciderDisplay: "usr_vec_alice_00000001",
+  deciderDisplay: "alice-example",
   deciderAuthMethod: "session",
   resolutionType: "deny",
   attributionConfidence: "credentialed",
@@ -795,19 +848,33 @@ const v3Revoke = {
   createdAt: "2026-10-06T09:05:00.000Z",
 };
 
-/** Commit to the row's request and project it under its lane's tag, as the issuer's signer does. */
+/**
+ * Mint a v3 row as the issuer's signer does (app signing/receipt-v3.ts and
+ * decider-proof.ts): add the summary to the request under receiptSummary,
+ * commit to that text with the vector's salt, project it under the lane's tag,
+ * and build the decider proof from the stored step-up evidence. The bound row
+ * stores the committed text as requestJson. `override` replaces the projection
+ * or the proof, for the deliberately defective vectors only.
+ */
 function bindV3(row, name, override = {}) {
   const salt = v3Salt(name);
+  const requestJson = committedRequestJson(row.requestJson, row.summary);
+  const deciderProof = Object.prototype.hasOwnProperty.call(override, "deciderProof")
+    ? override.deciderProof
+    : deciderProofForSigning(row.deciderAuthMethod, row.stepUpEvidence);
   return {
     ...row,
-    requestCommitment: requestCommitment(salt, row.requestJson),
-    publicProjectionJson: override.publicProjectionJson ?? buildPublicProjection(PROJECTION_TAG_BY_LANE[row.lane], row.requestJson),
+    mintRequestJson: row.requestJson,
+    requestJson,
+    requestCommitment: requestCommitment(salt, requestJson),
+    publicProjectionJson: override.publicProjectionJson ?? buildPublicProjection(PROJECTION_TAG_BY_LANE[row.lane], requestJson),
+    deciderProof, // null when the decider did not step up: absent from the bytes
     salt,
   };
 }
 
 const V3_HINT =
-  "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt.";
+  "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, and checks the stated summary against the committed receiptSummary.";
 
 function v3Envelope(bound, { description, source, expected }, override = {}) {
   const value = envelope(bound, { description, source }, override);
@@ -832,30 +899,62 @@ const v3TamperedBytes = canonicalBytes({ ...v3PrivateBound, publicProjectionJson
 // The projection also carries action.parameters, which execute/v1 never
 // publishes. The signature is valid; the projection check must reject it.
 const v3LeakName = "outside-allowlist-approve-human-execute-lane-refund";
-const v3LeakProjection = JSON.parse(buildPublicProjection("execute/v1", v3RefundRequestJson));
+const v3LeakProjection = JSON.parse(v3RefundBound.publicProjectionJson);
 v3LeakProjection.action.parameters = v3RefundRequest.action.parameters;
 const v3LeakBound = bindV3({ ...v3ApproveRefund, id: "cmvec10v3leakedparams00000001" }, v3LeakName, {
   publicProjectionJson: canonicalJson(v3LeakProjection),
 });
 
+// Decider proof defects, signed for real with the test key. The issuer's mint
+// refuses both (it fails closed before signing); a verifier must reject them.
+// The passkey evidence alice's execute-lane approvals would store: there
+// boundRequestId is the approval id and boundScopeHash the receipt's own id.
+const v3RefundPasskeyEvidence = (id, label, counter) => ({
+  method: "webauthn",
+  credentialIdHash: evidenceHash("alice passkey credential id"),
+  challengeHash: evidenceHash(`${label} assertion challenge`),
+  authenticatorDataHash: evidenceHash(`${label} authenticator data`),
+  userVerified: true,
+  counter,
+  rpId: RP_ID,
+  origin: RP_ORIGIN,
+  boundRequestId: `apr_${label}_00000001`,
+  boundScopeHash: id,
+  verifiedAt: "2026-10-06T11:04:40.000Z",
+});
+// A webauthn proof signed for a decider whose auth method is session.
+const v3ProofMismatchName = "decider-proof-mismatch-approve-human-execute-lane-refund";
+const v3ProofMismatchId = "cmvec11v3proofmismatch0000001";
+const v3ProofMismatchBound = bindV3({ ...v3ApproveRefund, id: v3ProofMismatchId }, v3ProofMismatchName, {
+  deciderProof: deciderProofForSigning("session_stepup_webauthn", v3RefundPasskeyEvidence(v3ProofMismatchId, "vec11", 18)),
+});
+// A passkey decider whose signed proof also carries the authenticator's
+// signature counter, a key outside the proof's frozen shape.
+const v3ProofShapeName = "non-canonical-proof-approve-human-execute-lane-refund";
+const v3ProofShapeId = "cmvec12v3proofshape0000000001";
+const v3ProofShapeEvidence = v3RefundPasskeyEvidence(v3ProofShapeId, "vec12", 19);
+const v3ProofShapeBound = bindV3({ ...v3ApproveRefund, id: v3ProofShapeId, deciderAuthMethod: "session_stepup_webauthn" }, v3ProofShapeName, {
+  deciderProof: { ...deciderProofForSigning("session_stepup_webauthn", v3ProofShapeEvidence), counter: v3ProofShapeEvidence.counter },
+});
+
 const v3Vectors = {
   "approve-human-deploy-gate-private-repo.json": v3Envelope(v3PrivateBound, {
-    description: "jcs_v3. APPROVED by a named human (passkey step-up) on the deploy-gate lane for a private repository. The signed bytes carry no companyId, idemKey, requestJson or inputHash: a salted requestCommitment and a deploy_gate/v1 projection instead. scope.visibility is private, so the projection omits every repository-identity (†) path: no repository, ref, workflow, branches, changed paths or PR number. The commit SHA, environment, capability and rule@version stay public. The committed request is test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json.",
-    source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on; signing/public-projection.ts, signing/request-commitment.ts",
+    description: "jcs_v3. APPROVED by a named human on the deploy-gate lane for a private repository, after a passkey step-up. The signed bytes carry no companyId, idemKey, requestJson, inputHash or summary: a salted requestCommitment, a deploy_gate/v1 projection and a webauthn deciderProof instead. scope.visibility is private, so the projection omits every repository-identity (†) path: no repository, ref, workflow, branches, changed paths or PR number. The commit SHA, environment, capability and rule@version stay public. The proof carries three digests, the relying party, the review round and the time; the stored evidence's counter, bound request id and bound scope hash are not signed. The committed request, with the summary under receiptSummary, is test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json.",
+    source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on; signing/receipt-v3.ts, public-projection.ts, request-commitment.ts, decider-proof.ts",
     expected: "verified",
   }),
   "approve-human-deploy-gate-public-repo.json": v3Envelope(v3PublicBound, {
-    description: "jcs_v3. APPROVED by the second of two required approvers on the deploy-gate lane for a public repository. scope.visibility is public, so the projection carries the repository-identity (†) paths. The recorded decisions are projected as display name, auth method and time only; user ids, the rule's rationale, approver lists and the enrichment stay behind the commitment.",
+    description: "jcs_v3. APPROVED by the second of two required approvers on the deploy-gate lane for a public repository, after a fresh GitHub sign-in (session_reauth, with a reauth deciderProof: sign-in time, maximum age, decision time). scope.visibility is public, so the projection carries the repository-identity (†) paths. The recorded decisions are projected as display name, auth method and time only; user ids, the rule's rationale, approver lists, the enrichment and the summary stay behind the commitment.",
     source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts (multi-approver rule) with PP_RECEIPT_V3=on",
     expected: "verified",
   }),
   "approve-human-execute-lane-refund.json": v3Envelope(v3RefundBound, {
-    description: "jcs_v3. APPROVED by a named human on the execute lane, signed at the decision before the action ran. The execute/v1 projection carries the intent and action names and the two context enums; the tenant, the parameters, the agent's summary and the context metadata stay behind the commitment.",
+    description: "jcs_v3. APPROVED by a named human on the execute lane over a plain session, signed at the decision before the action ran. No step-up, so no deciderProof. The execute/v1 projection carries the intent and action names and the two context enums; the tenant, the parameters, the agent's summary, the context metadata and the decision summary stay behind the commitment.",
     source: "app src/lib/permission-router/receipt-signing.ts with PP_RECEIPT_V3=on",
     expected: "verified",
   }),
   "revoke-human-deploy-gate.json": v3Envelope(v3RevokeBound, {
-    description: "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and copies the revoked request's scope under the same visibility rule. The reason is free text: it is the signed, public summary and is never projected.",
+    description: "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and copies the revoked request's scope under the same visibility rule. The reason is free text: it is the summary, committed under receiptSummary, and is neither signed nor projected.",
     source: "app src/app/api/v1/receipts/[receiptId]/revoke/route.ts with PP_RECEIPT_V3=on",
     expected: "verified",
   }),
@@ -873,41 +972,55 @@ const v3Vectors = {
     source: "SPEC.md section 6.7, projection check",
     expected: "PROJECTION_NOT_ALLOWED",
   }),
+  [`${v3ProofMismatchName}.json`]: v3Envelope(v3ProofMismatchBound, {
+    description: "A deliberate issuer defect, signed for real with the test key: the execute-lane approval signs deciderAuthMethod session, which proves no step-up, beside a webauthn deciderProof. The proof itself is well formed. The signature verifies; the decider proof check MUST reject it as DECIDER_PROOF_MISMATCH, a policy failure, not tampering. The issuer's mint refuses such a receipt (DECIDER_PROOF_UNEXPECTED).",
+    source: "SPEC.md sections 3.8 and 6.7, decider proof check",
+    expected: "DECIDER_PROOF_MISMATCH",
+  }),
+  [`${v3ProofShapeName}.json`]: v3Envelope(v3ProofShapeBound, {
+    description: "A deliberate issuer defect, signed for real with the test key: a passkey decider (session_stepup_webauthn) whose webauthn deciderProof also carries the authenticator's signature counter, a key outside the proof's frozen shape. The signature verifies; the decider proof check MUST reject it as DECIDER_PROOF_INVALID, a policy failure, not tampering. The issuer's mint never copies that key.",
+    source: "SPEC.md sections 3.8 and 6.7, decider proof check",
+    expected: "DECIDER_PROOF_INVALID",
+  }),
 };
 
-// The private side. A real issuer never publishes it; it hands a request and
-// its salt to the workspace that owns the receipt.
-const reformattedPrivateRequest = JSON.stringify(JSON.parse(v3PrivateRequestJson), null, 2);
-const modifiedRefundRequest = v3RefundRequestJson.replace('"amountCents":480000', '"amountCents":480001');
-if (modifiedRefundRequest === v3RefundRequestJson) throw new Error("modified refund request did not change");
+// The private side. A real issuer never publishes it; it hands a request, its
+// salt and the stored summary to the workspace that owns the receipt.
+const reformattedPrivateRequest = JSON.stringify(JSON.parse(v3PrivateBound.requestJson), null, 2);
+const modifiedRefundRequest = v3RefundBound.requestJson.replace('"amountCents":480000', '"amountCents":480001');
+if (modifiedRefundRequest === v3RefundBound.requestJson) throw new Error("modified refund request did not change");
 
-const opening = (receiptVector, requestFile, salt, expected, note) => ({
+const opening = (receiptVector, requestFile, salt, summary, expected, note) => ({
   receipt_vector: receiptVector,
   request_file: requestFile,
   salt_hex: salt.toString("hex"),
+  ...(summary === undefined ? {} : { summary }),
   expected,
   note,
 });
 const v3Openings = {
-  "approve-human-deploy-gate-private-repo.request.json": new ExactText(v3PrivateRequestJson),
-  "approve-human-deploy-gate-public-repo.request.json": new ExactText(v3PublicRequestJson),
-  "approve-human-execute-lane-refund.request.json": new ExactText(v3RefundRequestJson),
-  "revoke-human-deploy-gate.request.json": new ExactText(v3RevokeRequestJson),
+  "approve-human-deploy-gate-private-repo.request.json": new ExactText(v3PrivateBound.requestJson),
+  "approve-human-deploy-gate-public-repo.request.json": new ExactText(v3PublicBound.requestJson),
+  "approve-human-execute-lane-refund.request.json": new ExactText(v3RefundBound.requestJson),
+  "revoke-human-deploy-gate.request.json": new ExactText(v3RevokeBound.requestJson),
   "reformatted-approve-human-deploy-gate-private-repo.request.json": new ExactText(reformattedPrivateRequest),
   "modified-approve-human-execute-lane-refund.request.json": new ExactText(modifiedRefundRequest),
   "openings.json": {
     description:
-      "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 2). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting) and a 32-byte salt in hex. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
+      "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 3). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting), a 32-byte salt in hex and, when present, summary: the summary the issuer states for the receipt beside the request (a string, or null for none), which must equal the committed receiptSummary. A case without summary states none and compares nothing. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH, COMMITTED_SUMMARY_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
     generated_by: "node tools/generate-vectors.mjs",
     cases: [
-      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, "opened", "The committed request and its salt reproduce requestCommitment, and the deploy_gate/v1 projection rebuilt from the request equals the signed one."),
-      opening("approve-human-deploy-gate-public-repo.json", "approve-human-deploy-gate-public-repo.request.json", v3PublicBound.salt, "opened", "As above, for the public repository."),
-      opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, "opened", "As above, under execute/v1."),
-      opening("revoke-human-deploy-gate.json", "revoke-human-deploy-gate.request.json", v3RevokeBound.salt, "opened", "As above, under revocation/v1."),
-      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PublicBound.salt, "REQUEST_COMMITMENT_MISMATCH", "The right request with another receipt's salt."),
-      opening("approve-human-deploy-gate-private-repo.json", "reformatted-approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, "REQUEST_COMMITMENT_MISMATCH", "The same request object pretty-printed: the commitment covers the exact text, never a re-serialization."),
-      opening("approve-human-execute-lane-refund.json", "modified-approve-human-execute-lane-refund.request.json", v3RefundBound.salt, "REQUEST_COMMITMENT_MISMATCH", "The right salt with one byte of the request changed (amountCents 480000 to 480001), a field the projection does not show."),
-      opening(`${v3LeakName}.json`, "approve-human-execute-lane-refund.request.json", v3LeakBound.salt, "PUBLIC_PROJECTION_MISMATCH", "The commitment opens, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."),
+      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, v3PrivateBound.summary, "opened", "The committed request and its salt reproduce requestCommitment, the stated summary is the committed receiptSummary, and the deploy_gate/v1 projection rebuilt from the request equals the signed one."),
+      opening("approve-human-deploy-gate-public-repo.json", "approve-human-deploy-gate-public-repo.request.json", v3PublicBound.salt, v3PublicBound.summary, "opened", "As above, for the public repository."),
+      opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, v3RefundBound.summary, "opened", "As above, under execute/v1."),
+      opening("revoke-human-deploy-gate.json", "revoke-human-deploy-gate.request.json", v3RevokeBound.salt, v3RevokeBound.summary, "opened", "As above, under revocation/v1: the revocation reason is the committed summary."),
+      opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, undefined, "opened", "No summary stated: the opening checks the commitment and the projection, and reports the committed summary without comparing it."),
+      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PublicBound.salt, undefined, "REQUEST_COMMITMENT_MISMATCH", "The right request with another receipt's salt."),
+      opening("approve-human-deploy-gate-private-repo.json", "reformatted-approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, undefined, "REQUEST_COMMITMENT_MISMATCH", "The same request object pretty-printed: the commitment covers the exact text, never a re-serialization."),
+      opening("approve-human-execute-lane-refund.json", "modified-approve-human-execute-lane-refund.request.json", v3RefundBound.salt, undefined, "REQUEST_COMMITMENT_MISMATCH", "The right salt with one byte of the request changed (amountCents 480000 to 480001), a field the projection does not show."),
+      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, `${v3PrivateBound.summary}. Amount limit raised to unlimited.`, "COMMITTED_SUMMARY_MISMATCH", "The commitment opens, but the stated summary was edited after signing: it is not the committed receiptSummary. The summary is not in the signed bytes, so only an opening catches this."),
+      opening("revoke-human-deploy-gate.json", "revoke-human-deploy-gate.request.json", v3RevokeBound.salt, null, "COMMITTED_SUMMARY_MISMATCH", "The commitment opens, but the summary is stated as none while the request commits the revocation reason."),
+      opening(`${v3LeakName}.json`, "approve-human-execute-lane-refund.request.json", v3LeakBound.salt, v3LeakBound.summary, "PUBLIC_PROJECTION_MISMATCH", "The commitment opens and the summary holds, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."),
     ],
   },
 };
@@ -919,27 +1032,73 @@ const allVectors = {
   ...Object.fromEntries(Object.entries(v3Openings).map(([name, value]) => [`v3/openings/${name}`, value])),
 };
 
+// conformance/expected-canonical-bytes.txt: the v1 fixture digests it has
+// always published (RECEIPT-FORMAT-V1.md), then the SHA-256 of the canonical
+// bytes of every jcs_v3 vector, path first, generated here so it cannot drift.
+const conformancePath = join(root, "conformance", "expected-canonical-bytes.txt");
+const conformanceV1 = readFileSync(conformancePath, "utf8").split("\n").filter((line) => line && !line.startsWith("test-vectors/"));
+const conformanceText = `${[
+  ...conformanceV1,
+  ...Object.entries(v3Vectors).map(([name, value]) => `test-vectors/v3/${name} ${signingDigest(Buffer.from(value.artifact.payload_bytes_b64, "base64")).toString("hex")}`),
+].join("\n")}\n`;
+
 let drift = 0;
 if (!check) {
   mkdirSync(join(root, "test-vectors", "attestations"), { recursive: true });
   mkdirSync(join(root, "test-vectors", "v3", "openings"), { recursive: true });
 }
-for (const [name, value] of Object.entries(allVectors)) {
-  const path = join(root, "test-vectors", name);
-  // A committed request is published as its exact text: no reformatting and
-  // no trailing newline, because the commitment covers it byte for byte.
-  const text = value instanceof ExactText ? value.text : `${JSON.stringify(value, null, 2)}\n`;
+const outputs = [
+  ...Object.entries(allVectors).map(([name, value]) => [
+    `test-vectors/${name}`,
+    // A committed request is published as its exact text: no reformatting and
+    // no trailing newline, because the commitment covers it byte for byte.
+    value instanceof ExactText ? value.text : `${JSON.stringify(value, null, 2)}\n`,
+  ]),
+  ["conformance/expected-canonical-bytes.txt", conformanceText],
+];
+for (const [relative, text] of outputs) {
+  const path = join(root, relative);
   if (check) {
     const current = existsSync(path) ? readFileSync(path, "utf8") : null;
     if (current !== text) {
       drift += 1;
-      console.error(`DRIFT ${name}: regenerate with node tools/generate-vectors.mjs`);
+      console.error(`DRIFT ${relative}: regenerate with node tools/generate-vectors.mjs`);
     }
   } else {
     writeFileSync(path, text);
-    console.log(`wrote test-vectors/${name}`);
+    console.log(`wrote ${relative}`);
   }
 }
+
+// The mint inputs of every v3 vector an issuer can produce, for signing them
+// with the issuer's own signer and comparing byte for byte (SPEC.md section 12).
+if (inputsPath) {
+  const issuable = Object.entries({
+    "approve-human-deploy-gate-private-repo.json": v3PrivateBound,
+    "approve-human-deploy-gate-public-repo.json": v3PublicBound,
+    "approve-human-execute-lane-refund.json": v3RefundBound,
+    "revoke-human-deploy-gate.json": v3RevokeBound,
+  }).map(([name, bound]) => ({
+    vector: `test-vectors/v3/${name}`,
+    lane: bound.lane,
+    salt_hex: bound.salt.toString("hex"),
+    request_json: bound.mintRequestJson,
+    summary: bound.summary,
+    step_up_evidence: bound.stepUpEvidence ?? null,
+    fields: Object.fromEntries(
+      ["id", "companyId", "idemKey", "agentId", "runId", "inputHash", "status", "riskTier", "policyVersion", "reasonCodes", "createdAt", "expiresAt"].map((field) => [field, bound[field] ?? null])
+    ),
+    decider: Object.fromEntries(
+      ["deciderId", "deciderDisplay", "deciderAuthMethod", "resolutionType", "attributionConfidence", "scope"].map((field) => [field, bound[field] ?? null])
+    ),
+  }));
+  writeFileSync(
+    inputsPath,
+    `${JSON.stringify({ description: "jcs_v3 mint inputs, from node tools/generate-vectors.mjs --inputs", key_id: KEY_ID, private_key_pem: "fixtures/keypair-test/private-key.pem", vectors: issuable }, null, 2)}\n`
+  );
+  console.log(`wrote mint inputs to ${inputsPath}`);
+}
+
 if (check) {
   if (drift) process.exit(1);
   console.log("vectors match their generator");

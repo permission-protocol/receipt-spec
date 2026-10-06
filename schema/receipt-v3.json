@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/permission-protocol/receipt-spec/schema/receipt-v3.json",
   "title": "Permission Protocol receipt, signed payload (receiptVersion 3, jcs_v3)",
-  "description": "The JSON object obtained by decoding a jcs_v3 receipt's signed payload bytes (artifact.payload_bytes_b64). This is exactly what the Ed25519 signature covers, after SHA-256. Compared with jcs_v2 it drops companyId, idemKey, requestJson and inputHash and adds requestCommitment and publicProjectionJson (SPEC.md sections 3.4 to 3.6). Fields whose stored value is null are absent, never present as null. The contents of publicProjectionJson are checked against its tag's allowlist by SPEC.md section 6.7, which a schema cannot express.",
+  "description": "The JSON object obtained by decoding a jcs_v3 receipt's signed payload bytes (artifact.payload_bytes_b64). This is exactly what the Ed25519 signature covers, after SHA-256. Compared with jcs_v2 it drops companyId, idemKey, requestJson, inputHash and summary, and adds requestCommitment, publicProjectionJson and deciderProof (SPEC.md sections 3.4 to 3.8). The summary is committed inside the private request under receiptSummary instead of being signed. Fields whose stored value is null are absent, never present as null. Three rules are checked by SPEC.md section 6.7 because a schema cannot express them: the contents of publicProjectionJson against its tag's allowlist; deciderProof present exactly when deciderAuthMethod is a step-up value, and of the matching method; and a reauth proof's verifiedAt at most maxAgeMs after its authTime.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -68,10 +68,6 @@
       "minLength": 2,
       "description": "A JSON array of reason-code strings, serialized as text. Order is preserved. Parse before use."
     },
-    "summary": {
-      "type": "string",
-      "description": "Human-readable summary of the decision. Signed and public in jcs_v3: it can carry a decider's typed reason, such as a revocation reason."
-    },
     "deciderId": {
       "type": "string",
       "pattern": "^(user:.+|api_key:.+|demo:.+|system/pp-engine|system/pp-policy-engine|system/pp-permission-router|role/human-approver|role/founder|role/api-key-approver)$",
@@ -85,7 +81,105 @@
     "deciderAuthMethod": {
       "type": "string",
       "enum": ["session", "session_stepup_webauthn", "session_reauth", "api_key", "anonymous_demo", "policy"],
-      "description": "Credential lane of the decider. Absent when the mint path recorded null."
+      "description": "Credential lane of the decider. Absent when the mint path recorded null. session_stepup_webauthn and session_reauth require a matching deciderProof (SPEC.md section 3.8)."
+    },
+    "deciderProof": {
+      "description": "The decider's step-up evidence, signed (SPEC.md section 3.8). Present exactly when deciderAuthMethod is session_stepup_webauthn (a webauthn proof) or session_reauth (a reauth proof); absent for every other decider. One of two frozen shapes; no other key is ever signed.",
+      "oneOf": [
+        {
+          "title": "webauthn",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "credentialIdHash",
+            "challengeHash",
+            "authenticatorDataHash",
+            "userVerified",
+            "rpId",
+            "origin",
+            "verifiedAt"
+          ],
+          "properties": {
+            "method": {
+              "const": "webauthn"
+            },
+            "credentialIdHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Lowercase hex SHA-256 of the passkey's credential id."
+            },
+            "challengeHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Lowercase hex SHA-256 of the single-use challenge the assertion signed."
+            },
+            "authenticatorDataHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Lowercase hex SHA-256 of the authenticator data the assertion returned."
+            },
+            "userVerified": {
+              "type": "boolean",
+              "description": "Whether the authenticator reported user verification."
+            },
+            "rpId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9.-]{1,253}$",
+              "description": "The relying party id the assertion was made for: the issuer's host name."
+            },
+            "origin": {
+              "type": "string",
+              "pattern": "^https?://[^/?#]+$",
+              "maxLength": 2048,
+              "description": "The origin the assertion was made from, as the URL standard serializes an origin (scheme, host, non-default port; no path, no trailing slash). SPEC.md section 3.8 states the exact rule."
+            },
+            "reviewGeneration": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Optional: the policy review round the assertion was bound to, when the decision recorded one."
+            },
+            "verifiedAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "description": "ISO 8601 UTC with milliseconds: when the issuer verified the assertion."
+            }
+          }
+        },
+        {
+          "title": "reauth",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "authTime",
+            "maxAgeMs",
+            "verifiedAt"
+          ],
+          "properties": {
+            "method": {
+              "const": "reauth"
+            },
+            "authTime": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "description": "ISO 8601 UTC with milliseconds: when the decider last authenticated to the issuer's identity provider."
+            },
+            "maxAgeMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "The freshness window the issuer applied, in milliseconds."
+            },
+            "verifiedAt": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+              "description": "ISO 8601 UTC with milliseconds: when the issuer accepted the re-authentication for this decision. At most maxAgeMs after authTime."
+            }
+          }
+        }
+      ]
     },
     "resolutionType": {
       "type": "string",

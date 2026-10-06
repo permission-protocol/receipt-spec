@@ -27,11 +27,22 @@ jobs:
           if node tools/verify.mjs test-vectors/attestations/tampered-attest-failed-human-execute-lane-create-pr.json test-vectors/keys.json --receipt test-vectors/approve-human-execute-lane-create-pr.json; then
             echo "tampered attestation verified; that is a bug" && exit 1
           fi
-      - name: Verify one jcs_v3 receipt and open its commitment through the reference CLI
+      - name: Verify one jcs_v3 receipt and open its commitment, with its stated summary, through the reference CLI
         run: |
-          salt="$(node -p 'require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened").salt_hex')"
+          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/salt", c.salt_hex); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/summary.txt", c.summary)'
           node tools/verify.mjs test-vectors/v3/approve-human-deploy-gate-private-repo.json test-vectors/keys.json \
-            --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$salt"
+            --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$(cat "$RUNNER_TEMP/salt")" \
+            --summary "$RUNNER_TEMP/summary.txt"
+      - name: A stated summary the commitment does not bind must not open it
+        run: |
+          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.expected === "COMMITTED_SUMMARY_MISMATCH" && typeof c.summary === "string"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/bad-summary.txt", c.summary)'
+          code=0
+          node tools/verify.mjs test-vectors/v3/approve-human-deploy-gate-private-repo.json test-vectors/keys.json \
+            --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$(cat "$RUNNER_TEMP/salt")" \
+            --summary "$RUNNER_TEMP/bad-summary.txt" || code=$?
+          if [ "$code" -ne 10 ]; then
+            echo "expected exit 10 (commitment not opened: committed summary mismatch), got $code" && exit 1
+          fi
       - name: The tampered jcs_v3 vector must fail at the signature
         run: |
           if node tools/verify.mjs test-vectors/v3/tampered-approve-human-deploy-gate-private-repo.json test-vectors/keys.json; then
@@ -44,6 +55,15 @@ jobs:
           if [ "$code" -ne 9 ]; then
             echo "expected exit 9 (projection not allowed), got $code" && exit 1
           fi
+      - name: A signed jcs_v3 decider proof that breaks its rules must fail the decider proof check
+        run: |
+          for vector in decider-proof-mismatch-approve-human-execute-lane-refund non-canonical-proof-approve-human-execute-lane-refund; do
+            code=0
+            node tools/verify.mjs "test-vectors/v3/$vector.json" test-vectors/keys.json || code=$?
+            if [ "$code" -ne 9 ]; then
+              echo "$vector: expected exit 9 (decider proof policy failure), got $code" && exit 1
+            fi
+          done
       - name: Vectors are regenerated deterministically from their inputs
         run: |
           node tools/generate-vectors.mjs --check

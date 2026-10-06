@@ -1,8 +1,8 @@
 // Reference implementation of the jcs_v1, jcs_v2 and jcs_v3 canonicalization
 // described in SPEC.md section 4. Dependency-free. Byte-for-byte equivalent to
 // the hosted service's canonicalizeReceiptForVersion (app repo,
-// src/lib/permission-protocol-v1/signing/canonicalize.ts); tools/generate-vectors.mjs
-// cross-checks that equivalence when the app checkout is available.
+// src/lib/permission-protocol-v1/signing/canonicalize.ts); SPEC.md section 12
+// records the byte-for-byte check against the issuer's signer.
 import { createHash } from "node:crypto";
 
 export const SIGNED_FIELDS_V1 = [
@@ -38,9 +38,11 @@ export const SIGNED_FIELDS_V2 = [
 
 // jcs_v3 (SPEC.md section 3.4): written out in full, not derived from v2, so
 // the frozen contents are visible. Removed from v2: companyId, idemKey,
-// requestJson, inputHash. Added: requestCommitment (section 3.5) and
-// publicProjectionJson (section 3.6). Order is irrelevant to the bytes (keys
-// are sorted); it matches the issuer's list.
+// requestJson, inputHash and summary (the summary is committed inside the
+// request under receiptSummary instead, section 3.5). Added: requestCommitment
+// (section 3.5), publicProjectionJson (section 3.6) and deciderProof (section
+// 3.8, an object, absent when the decider did not step up). Order is
+// irrelevant to the bytes (keys are sorted); it matches the issuer's list.
 export const SIGNED_FIELDS_V3 = [
   "id",
   "agentId",
@@ -51,7 +53,6 @@ export const SIGNED_FIELDS_V3 = [
   "riskTier",
   "policyVersion",
   "reasonCodes",
-  "summary",
   "receiptVersion",
   "canonicalization",
   "signatureAlg",
@@ -61,6 +62,7 @@ export const SIGNED_FIELDS_V3 = [
   "deciderId",
   "deciderDisplay",
   "deciderAuthMethod",
+  "deciderProof",
   "resolutionType",
   "attributionConfidence",
   "scope",
@@ -134,6 +136,38 @@ export function requestCommitment(salt, requestJson) {
     throw new RangeError(`a request commitment salt is exactly ${REQUEST_COMMITMENT_SALT_BYTES} bytes (got ${salt.length})`);
   }
   return `sha256:${createHash("sha256").update(salt).update(Buffer.from(requestJson, "utf8")).digest("hex")}`;
+}
+
+/**
+ * The reserved top-level request key that carries a jcs_v3 receipt's summary
+ * (SPEC.md section 3.5). Only the issuer's mint sets it, and no projection
+ * allowlist names it.
+ */
+export const RECEIPT_SUMMARY_REQUEST_KEY = "receiptSummary";
+
+/** The canonical text of a request: keys sorted recursively, no whitespace. */
+export function canonicalRequestJson(requestJson) {
+  return JSON.stringify(sortKeys(JSON.parse(requestJson)));
+}
+
+/**
+ * The mint side of the committed summary (SPEC.md section 3.5), as the
+ * issuer's buildReceiptV3RequestBinding does it: the request must be
+ * canonical text of a JSON object without the reserved key; the summary is
+ * added under receiptSummary when it is a string and left out otherwise; the
+ * result is canonical text. That text is the stored requestJson the
+ * commitment covers. Throws on a request the issuer would refuse.
+ */
+export function committedRequestJson(requestJson, summary) {
+  if (typeof requestJson !== "string" || canonicalRequestJson(requestJson) !== requestJson) {
+    throw new Error("the request text is not canonical JSON (recursively sorted keys, no whitespace)");
+  }
+  const request = JSON.parse(requestJson);
+  if (request === null || typeof request !== "object" || Array.isArray(request)) throw new Error("the request is not a JSON object");
+  if (Object.prototype.hasOwnProperty.call(request, RECEIPT_SUMMARY_REQUEST_KEY)) {
+    throw new Error(`the request already carries the reserved key "${RECEIPT_SUMMARY_REQUEST_KEY}"; only the mint sets it`);
+  }
+  return JSON.stringify(sortKeys(typeof summary === "string" ? { ...request, [RECEIPT_SUMMARY_REQUEST_KEY]: summary } : request));
 }
 
 // ---------------------------------------------------------------------------

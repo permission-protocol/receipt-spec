@@ -19,7 +19,7 @@ A verifier dispatches on the receipt's own `canonicalization` value and rebuilds
 
 ## New versions are additive; unknown ones fail closed
 
-A new canonicalization version is added next to the old ones. It never changes how a receipt signed under an older value verifies, and no receipt is re-signed, rewritten or migrated to it. `jcs_v3` (`SPEC.md` sections 3.4 to 3.7) is the first version that removes signed fields. `jcs_v1` and `jcs_v2` receipts keep `companyId`, `idemKey`, `requestJson` and `inputHash` in their bytes and verify by their own rules forever.
+A new canonicalization version is added next to the old ones. It never changes how a receipt signed under an older value verifies, and no receipt is re-signed, rewritten or migrated to it. `jcs_v3` (`SPEC.md` sections 3.4 to 3.8) is the first version that removes signed fields. `jcs_v1` and `jcs_v2` receipts keep `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary` in their bytes and verify by their own rules forever.
 
 A verifier that does not implement a receipt's `canonicalization` MUST report it as unsupported (`CANONICALIZATION_UNSUPPORTED` in `tools/verify.mjs`): unverifiable by that verifier, not tampered. It MUST NOT re-canonicalize the bytes under another version's list. A verifier written before `jcs_v3` therefore fails closed on a `jcs_v3` receipt rather than calling it valid or tampered.
 
@@ -37,7 +37,7 @@ A signed field is never removed from a canonicalization version, because removin
 2. `SPEC.md` marks the field as present in older versions only, with the date the last receipts carrying it were minted.
 3. Verifiers keep the old field rules for the old version. Nothing is re-signed, backdated, or migrated.
 
-`jcs_v3` is the first deprecation: it omits `companyId`, `idemKey`, `requestJson` and `inputHash` from its signed set, and binds the request through `requestCommitment` and `publicProjectionJson` instead. Because it removes signed fields, it also moves `receiptVersion` to `3`. Receipts carrying the old fields stay valid.
+`jcs_v3` is the first deprecation: it omits `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary` from its signed set, binds the request through `requestCommitment` and `publicProjectionJson` instead, and binds the summary inside the committed request (`receiptSummary`). It also adds one signed field, `deciderProof`. Because it removes signed fields, it also moves `receiptVersion` to `3`. Receipts carrying the old fields stay valid.
 
 ## Projection tags
 
@@ -49,7 +49,7 @@ A `jcs_v3` receipt's `publicProjectionJson` names the allowlist it was built und
 
 ## Widening a value set
 
-Adding an allowed value to an existing signed string field (for example a new `deciderAuthMethod` such as a step-up authentication method) does **not** change the bytes of any existing receipt, so it does not require a new canonicalization version. It does require:
+Adding an allowed value to an existing signed string field (for example a new `deciderAuthMethod`, such as the two step-up authentication methods added under `jcs_v2`) does **not** change the bytes of any existing receipt, so it does not require a new canonicalization version. Under `jcs_v3` this holds only for a value that requires no decider proof (see "The decider proof shapes"). It does require:
 
 1. A `SPEC.md` update naming the new value and the date it first appears.
 2. A schema update that accepts the new value.
@@ -80,8 +80,13 @@ Any of the following is a breaking change and gets a new `receiptVersion` and a 
 | 2026-09-08 | `SPEC.md` documents the format as emitted, including the digest signature input and the string types the hosted service uses; `prev` reserved for `jcs_v3` | no version change (documentation) |
 | 2026-10-03 | Step-up signing values `session_stepup_webauthn` and `session_reauth` for `deciderAuthMethod`, observed on production receipts by this date; documented here | no version change (values only) |
 | 2026-10 | Execution attestations: the execute lane signs the authorization before the action and records the outcome as a separate signed attestation (ADR 0003); execute-lane human approvals signed at the decision are `credentialed` | `attestationVersion` `1`, `attest_v1` (attestations); receipts unchanged |
-| 2026-10-06 | Receipt format v3 specified: the signed bytes carry a salted `requestCommitment` and an allowlisted `publicProjectionJson` instead of `companyId`, `idemKey`, `requestJson` and `inputHash`. Specified before issuance; the hosted service has not issued one yet, and the date it first does will be added here. `prev` moves to `jcs_v4` | `receiptVersion` `3`, `jcs_v3`; projection tags `deploy_gate/v1`, `execute/v1`, `revocation/v1` |
+| 2026-10-06 | Receipt format v3 specified: the signed bytes carry a salted `requestCommitment` and an allowlisted `publicProjectionJson` instead of `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary`; the summary is committed inside the request under the reserved key `receiptSummary`; a decider who stepped up signs `deciderProof` (a `webauthn` or `reauth` shape, consistent with `deciderAuthMethod`). Specified before issuance; the hosted service has not issued one yet, and the date it first does will be added here. No chain field; `prev` moves to `jcs_v4` | `receiptVersion` `3`, `jcs_v3`; projection tags `deploy_gate/v1`, `execute/v1`, `revocation/v1` |
 
 ## Reserved names
 
-`prev` is reserved for `jcs_v4`. `jcs_v3` is the receipt-privacy change alone and does not carry it. See `SPEC.md`, "Chaining".
+- `prev` is reserved for `jcs_v4`. `jcs_v3` carries the receipt-privacy change and the signed decider proof, and no chain field. See `SPEC.md`, "Chaining".
+- `receiptSummary` is a reserved top-level key of a `jcs_v3` committed request: only the issuer's mint sets it, to the receipt's summary (`SPEC.md` section 3.5). A request that already carries it is refused, and no projection tag, present or future, may name it.
+
+## The decider proof shapes
+
+`deciderProof` (`SPEC.md` section 3.8) has two shapes, `webauthn` and `reauth`, each with a frozen key set. They are part of `jcs_v3` and frozen with it: a new key, a removed key, a changed rule or a new shape is a new canonicalization version, never an edit to `jcs_v3`. A new step-up `deciderAuthMethod` value that requires a proof is therefore also a new canonicalization version; a new value that requires none is a widened value set (above).

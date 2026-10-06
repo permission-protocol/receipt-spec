@@ -1,5 +1,5 @@
 {
-  "description": "jcs_v3. APPROVED by a named human on the execute lane, signed at the decision before the action ran. The execute/v1 projection carries the intent and action names and the two context enums; the tenant, the parameters, the agent's summary and the context metadata stay behind the commitment.",
+  "description": "jcs_v3. APPROVED by a named human on the execute lane over a plain session, signed at the decision before the action ran. No step-up, so no deciderProof. The execute/v1 projection carries the intent and action names and the two context enums; the tenant, the parameters, the agent's summary, the context metadata and the decision summary stay behind the commitment.",
   "generated_by": "node tools/generate-vectors.mjs",
   "mirrors": "app src/lib/permission-router/receipt-signing.ts with PP_RECEIPT_V3=on",
   "artifact": {
@@ -9,15 +9,15 @@
     "canonicalization": "jcs_v3",
     "key_id": "pp-test-2026-q2",
     "alg": "ed25519",
-    "signed_payload_hash": "c92d2652456008dc94741f361f8a5ec757d1951fe285855281cdf284263e6c80",
-    "signature_b64": "pEdhqeUWfH5BPvu0+QI7N+uV/V9y6yuf6VIYp3kyp0GHDBQ6k3GK0P1SgCiWzaExmweKNgpjikKXt1xwEjd4BQ==",
-    "payload_bytes_b64": "eyJhZ2VudElkIjoib3BzLWFnZW50IiwiYXR0cmlidXRpb25Db25maWRlbmNlIjoiY3JlZGVudGlhbGVkIiwiY2Fub25pY2FsaXphdGlvbiI6Impjc192MyIsImNyZWF0ZWRBdCI6IjIwMjYtMTAtMDZUMTE6MDI6MDAuMDAwWiIsImRlY2lkZXJBdXRoTWV0aG9kIjoic2Vzc2lvbiIsImRlY2lkZXJEaXNwbGF5IjoiYWxpY2UtZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19hbGljZV8wMDAwMDAwMSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMDZUMTE6MjA6MDAuMDAwWiIsImlkIjoiY212ZWMwOXYzaHVtYW5yZWZ1bmQwMDAwMDAwMDEiLCJwb2xpY3lWZXJzaW9uIjoicG9sX3YxX2hhcmRjb2RlZCIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJyZWZ1bmRcIixcInRvb2xcIjpcInN0cmlwZVwifSxcImNvbnRleHRcIjp7XCJlbnZpcm9ubWVudFwiOlwicHJvZHVjdGlvblwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCJ9LFwiaW50ZW50XCI6e1wiY2F0ZWdvcnlcIjpcInBheW1lbnRzXCIsXCJuYW1lXCI6XCJzdHJpcGU6cmVmdW5kXCJ9LFwicHJvamVjdGlvblwiOlwiZXhlY3V0ZS92MVwifSIsInJlYXNvbkNvZGVzIjoiW1wiVU5SRUdJU1RFUkVEX1RPT0w6c3RyaXBlXCIsXCJJUlJFVkVSU0lCTEU6SVJSRVZFUlNJQkxFXCIsXCJQUk9EVUNUSU9OX0VOVlwiLFwiUFJPRFVDVElPTl9SRVFVSVJFU19BUFBST1ZBTFwiXSIsInJlY2VpcHRWZXJzaW9uIjozLCJyZXF1ZXN0Q29tbWl0bWVudCI6InNoYTI1Njo3Y2YxNDNmNmNhZDEwM2NjZGMyY2YxZDAyNjQyMDY1MGRlMjI3NTAxZDE2ODgzZjg5NmVhYzVjMjNjYWVjMGMxIiwicmVzb2x1dGlvblR5cGUiOiJhbGxvd19vbmNlIiwicmlza1RpZXIiOiJDX0VYRUNVVEVfV0lUSF9BUFBST1ZBTCIsInJ1bklkIjoicnVuX2MwZmZlZTAyIiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQiLCJzdW1tYXJ5IjoiUHJvZHVjdGlvbiBlbnZpcm9ubWVudCByZXF1aXJlcyBodW1hbiBhcHByb3ZhbCJ9",
+    "signed_payload_hash": "96bba5486131a29fb9930ba331a32c1725e86681dd34545f856d7eeaaa106716",
+    "signature_b64": "LxgApONsf9x2Ou38FzIweCFrUXAX8U0QTHjF9e3wpvEzbNxT3T71CkXy5sEIjGKIV4nA3BxITNJ0e5eL0/6ZAQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoib3BzLWFnZW50IiwiYXR0cmlidXRpb25Db25maWRlbmNlIjoiY3JlZGVudGlhbGVkIiwiY2Fub25pY2FsaXphdGlvbiI6Impjc192MyIsImNyZWF0ZWRBdCI6IjIwMjYtMTAtMDZUMTE6MDI6MDAuMDAwWiIsImRlY2lkZXJBdXRoTWV0aG9kIjoic2Vzc2lvbiIsImRlY2lkZXJEaXNwbGF5IjoiYWxpY2UtZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19hbGljZV8wMDAwMDAwMSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMDZUMTE6MjA6MDAuMDAwWiIsImlkIjoiY212ZWMwOXYzaHVtYW5yZWZ1bmQwMDAwMDAwMDEiLCJwb2xpY3lWZXJzaW9uIjoicG9sX3YxX2hhcmRjb2RlZCIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJyZWZ1bmRcIixcInRvb2xcIjpcInN0cmlwZVwifSxcImNvbnRleHRcIjp7XCJlbnZpcm9ubWVudFwiOlwicHJvZHVjdGlvblwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCJ9LFwiaW50ZW50XCI6e1wiY2F0ZWdvcnlcIjpcInBheW1lbnRzXCIsXCJuYW1lXCI6XCJzdHJpcGU6cmVmdW5kXCJ9LFwicHJvamVjdGlvblwiOlwiZXhlY3V0ZS92MVwifSIsInJlYXNvbkNvZGVzIjoiW1wiVU5SRUdJU1RFUkVEX1RPT0w6c3RyaXBlXCIsXCJJUlJFVkVSU0lCTEU6SVJSRVZFUlNJQkxFXCIsXCJQUk9EVUNUSU9OX0VOVlwiLFwiUFJPRFVDVElPTl9SRVFVSVJFU19BUFBST1ZBTFwiXSIsInJlY2VpcHRWZXJzaW9uIjozLCJyZXF1ZXN0Q29tbWl0bWVudCI6InNoYTI1Njo5NzIwNGRkYTk1MDVmNmNmOGVhN2QyYzRkM2IwOWE2OGRkYmUxOGJhNTk5MTMxNzRiNDU1OWYyZWE1Yzk1ZWNlIiwicmVzb2x1dGlvblR5cGUiOiJhbGxvd19vbmNlIiwicmlza1RpZXIiOiJDX0VYRUNVVEVfV0lUSF9BUFBST1ZBTCIsInJ1bklkIjoicnVuX2MwZmZlZTAyIiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQifQ==",
     "issued_at": "2026-10-06T11:02:00.000Z",
     "expires_at": "2026-10-06T11:20:00.000Z",
     "redeemed_at": null
   },
   "keys_url": "test-vectors/keys.json",
-  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt.",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, and checks the stated summary against the committed receiptSummary.",
   "receipt": {
     "agentId": "ops-agent",
     "attributionConfidence": "credentialed",
@@ -32,15 +32,14 @@
     "publicProjectionJson": "{\"action\":{\"operation\":\"refund\",\"tool\":\"stripe\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"IRREVERSIBLE\"},\"intent\":{\"category\":\"payments\",\"name\":\"stripe:refund\"},\"projection\":\"execute/v1\"}",
     "reasonCodes": "[\"UNREGISTERED_TOOL:stripe\",\"IRREVERSIBLE:IRREVERSIBLE\",\"PRODUCTION_ENV\",\"PRODUCTION_REQUIRES_APPROVAL\"]",
     "receiptVersion": 3,
-    "requestCommitment": "sha256:7cf143f6cad103ccdc2cf1d026420650de227501d16883f896eac5c23caec0c1",
+    "requestCommitment": "sha256:97204dda9505f6cf8ea7d2c4d3b09a68ddbe18ba59913174b4559f2ea5c95ece",
     "resolutionType": "allow_once",
     "riskTier": "C_EXECUTE_WITH_APPROVAL",
     "runId": "run_c0ffee02",
     "scope": "production",
     "signatureAlg": "ed25519",
     "signatureKeyId": "pp-test-2026-q2",
-    "status": "APPROVED",
-    "summary": "Production environment requires human approval"
+    "status": "APPROVED"
   },
   "expected": "verified",
   "projection": {

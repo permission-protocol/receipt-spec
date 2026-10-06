@@ -1,0 +1,71 @@
+{
+  "description": "A deliberate issuer defect, signed for real with the test key: a passkey decider (session_stepup_webauthn) whose webauthn deciderProof also carries the authenticator's signature counter, a key outside the proof's frozen shape. The signature verifies; the decider proof check MUST reject it as DECIDER_PROOF_INVALID, a policy failure, not tampering. The issuer's mint never copies that key.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "SPEC.md sections 3.8 and 6.7, decider proof check",
+  "artifact": {
+    "receipt_id": "cmvec12v3proofshape0000000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "736f3a1fac1793c6e7245c25ad566106e0718a258082bd26e498865e68317194",
+    "signature_b64": "QW0OWOmKNhhfzP3Q2lAa8bMbPrnvkj0PDahMLS7+fssl8ZPZ7t6N4RLwzhmwPnAXa4mcxdfJd8h3AJrdAhHMBA==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoib3BzLWFnZW50IiwiYXR0cmlidXRpb25Db25maWRlbmNlIjoiY3JlZGVudGlhbGVkIiwiY2Fub25pY2FsaXphdGlvbiI6Impjc192MyIsImNyZWF0ZWRBdCI6IjIwMjYtMTAtMDZUMTE6MDI6MDAuMDAwWiIsImRlY2lkZXJBdXRoTWV0aG9kIjoic2Vzc2lvbl9zdGVwdXBfd2ViYXV0aG4iLCJkZWNpZGVyRGlzcGxheSI6ImFsaWNlLWV4YW1wbGUiLCJkZWNpZGVySWQiOiJ1c2VyOnVzcl92ZWNfYWxpY2VfMDAwMDAwMDEiLCJkZWNpZGVyUHJvb2YiOnsiYXV0aGVudGljYXRvckRhdGFIYXNoIjoiYzgxZGZjMjg5MTliYWUwMzU4ZGUyNzBmNjMzNTA1NTg2OTEyN2NmYjIzMGQ5NzU0ZWRhMmVmMjRkY2ViMmUzNyIsImNoYWxsZW5nZUhhc2giOiI4NTFiZTFlYjUzMjYyNzY0YzliMGRiMzg1YTgzZTZkN2FmMTc5MGEyYmEwNjA4MTY1ODZjMzY5NmRmYTRiMTk0IiwiY291bnRlciI6MTksImNyZWRlbnRpYWxJZEhhc2giOiIwNzk1NjQxNzJjMGY2ZDgxNzcyNDgyN2M5Yjg1ZjM4NzY5ZmVmMTZmY2JkNTg0MzhjNmRjZTg3NzFhZTZiYWM0IiwibWV0aG9kIjoid2ViYXV0aG4iLCJvcmlnaW4iOiJodHRwczovL2FwcC5wZXJtaXNzaW9ucHJvdG9jb2wuY29tIiwicnBJZCI6ImFwcC5wZXJtaXNzaW9ucHJvdG9jb2wuY29tIiwidXNlclZlcmlmaWVkIjp0cnVlLCJ2ZXJpZmllZEF0IjoiMjAyNi0xMC0wNlQxMTowNDo0MC4wMDBaIn0sImV4cGlyZXNBdCI6IjIwMjYtMTAtMDZUMTE6MjA6MDAuMDAwWiIsImlkIjoiY212ZWMxMnYzcHJvb2ZzaGFwZTAwMDAwMDAwMDEiLCJwb2xpY3lWZXJzaW9uIjoicG9sX3YxX2hhcmRjb2RlZCIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJyZWZ1bmRcIixcInRvb2xcIjpcInN0cmlwZVwifSxcImNvbnRleHRcIjp7XCJlbnZpcm9ubWVudFwiOlwicHJvZHVjdGlvblwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCJ9LFwiaW50ZW50XCI6e1wiY2F0ZWdvcnlcIjpcInBheW1lbnRzXCIsXCJuYW1lXCI6XCJzdHJpcGU6cmVmdW5kXCJ9LFwicHJvamVjdGlvblwiOlwiZXhlY3V0ZS92MVwifSIsInJlYXNvbkNvZGVzIjoiW1wiVU5SRUdJU1RFUkVEX1RPT0w6c3RyaXBlXCIsXCJJUlJFVkVSU0lCTEU6SVJSRVZFUlNJQkxFXCIsXCJQUk9EVUNUSU9OX0VOVlwiLFwiUFJPRFVDVElPTl9SRVFVSVJFU19BUFBST1ZBTFwiXSIsInJlY2VpcHRWZXJzaW9uIjozLCJyZXF1ZXN0Q29tbWl0bWVudCI6InNoYTI1Njo1NmIyYWMxZDc0NWYzNjU3YjM2NDE0NzA2ZTA2NGQ0ZDY0YzZjMjY4YjFiYzIxZWE5ZDQwOGYzOGUzYjk1ZmEyIiwicmVzb2x1dGlvblR5cGUiOiJhbGxvd19vbmNlIiwicmlza1RpZXIiOiJDX0VYRUNVVEVfV0lUSF9BUFBST1ZBTCIsInJ1bklkIjoicnVuX2MwZmZlZTAyIiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQifQ==",
+    "issued_at": "2026-10-06T11:02:00.000Z",
+    "expires_at": "2026-10-06T11:20:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, and checks the stated summary against the committed receiptSummary.",
+  "receipt": {
+    "agentId": "ops-agent",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-06T11:02:00.000Z",
+    "deciderAuthMethod": "session_stepup_webauthn",
+    "deciderDisplay": "alice-example",
+    "deciderId": "user:usr_vec_alice_00000001",
+    "deciderProof": {
+      "authenticatorDataHash": "c81dfc28919bae0358de270f6335055869127cfb230d9754eda2ef24dceb2e37",
+      "challengeHash": "851be1eb53262764c9b0db385a83e6d7af1790a2ba060816586c3696dfa4b194",
+      "counter": 19,
+      "credentialIdHash": "079564172c0f6d817724827c9b85f38769fef16fcbd58438c6dce8771ae6bac4",
+      "method": "webauthn",
+      "origin": "https://app.permissionprotocol.com",
+      "rpId": "app.permissionprotocol.com",
+      "userVerified": true,
+      "verifiedAt": "2026-10-06T11:04:40.000Z"
+    },
+    "expiresAt": "2026-10-06T11:20:00.000Z",
+    "id": "cmvec12v3proofshape0000000001",
+    "policyVersion": "pol_v1_hardcoded",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"refund\",\"tool\":\"stripe\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"IRREVERSIBLE\"},\"intent\":{\"category\":\"payments\",\"name\":\"stripe:refund\"},\"projection\":\"execute/v1\"}",
+    "reasonCodes": "[\"UNREGISTERED_TOOL:stripe\",\"IRREVERSIBLE:IRREVERSIBLE\",\"PRODUCTION_ENV\",\"PRODUCTION_REQUIRES_APPROVAL\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:56b2ac1d745f3657b36414706e064d4d64c6c268b1bc21ea9d408f38e3b95fa2",
+    "resolutionType": "allow_once",
+    "riskTier": "C_EXECUTE_WITH_APPROVAL",
+    "runId": "run_c0ffee02",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED"
+  },
+  "expected": "DECIDER_PROOF_INVALID",
+  "projection": {
+    "action": {
+      "operation": "refund",
+      "tool": "stripe"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "IRREVERSIBLE"
+    },
+    "intent": {
+      "category": "payments",
+      "name": "stripe:refund"
+    },
+    "projection": "execute/v1"
+  }
+}
