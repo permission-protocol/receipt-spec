@@ -151,7 +151,7 @@ The issuer opens the commitment on every verification it performs. It checks its
 The workspace that owns the receipt receives the request text, its salt, the stored summary and the stored binding values through the issuer's authenticated surfaces, under these fields on each `jcs_v3` receipt they carry:
 
 - **`request_json`**: the stored request text, byte for byte (a JSON string whose value is that text).
-- **`request_commitment_salt_b64`**: the 32-byte salt, standard base64; `null` when the issuer no longer holds it, in which case the commitment cannot be opened.
+- **`request_commitment_salt_b64`**: the 32-byte salt, standard base64; `null` when the issuer no longer holds it, in which case the commitment cannot be opened (request commitment unavailable, section 6.7).
 - **`summary`**: the receipt's summary as the issuer stores it, or `null` when it has none. Not signed: an opening checks it against `receiptSummary`.
 - **`company_id`**, **`idem_key`**, **`input_hash`**: the receipt's `companyId`, `idemKey` and `inputHash` as the issuer stores them, each a string or `null`. Not signed: an opening checks each one present against `receiptBinding`.
 
@@ -453,7 +453,7 @@ A conformant verifier performs these steps in order and stops at the first failu
 
 The key and the signature (steps 4 and 5) come before the canonicalization (step 6) because neither depends on it. A payload rewritten to name a canonicalization the verifier does not know, with its hash recomputed and any signature, fails as signature invalid or key not found. Only a signature that verifies over an unknown canonicalization is canonicalization unsupported: the issuer signed bytes this verifier cannot read.
 
-`tools/verify.mjs` implements exactly this and exits `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed, `4` hash or canonical mismatch, `8` unverifiable here, not tampered (canonicalization unsupported, projection unsupported, request commitment unavailable), `9` policy failure (projection not allowed, decider proof mismatch, decider proof invalid), `10` the private record supplied with the receipt does not match what was signed (request commitment mismatch, committed summary mismatch, receipt binding mismatch, public projection mismatch). Section 6.7 defines the `jcs_v3` codes; each code has one meaning on every surface.
+`tools/verify.mjs` implements exactly this and exits `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed (including request commitment malformed), `4` hash or canonical mismatch, `8` unverifiable here, not tampered (canonicalization unsupported, projection unsupported, request commitment unavailable), `9` policy failure (projection not allowed, decider proof mismatch, decider proof invalid), `10` the private record supplied with the receipt does not match what was signed (request commitment mismatch, committed summary mismatch, receipt binding mismatch, public projection mismatch). Section 6.7 defines the `jcs_v3` codes; each code has one meaning on every surface.
 
 ### 6.3 Schema validation
 
@@ -482,7 +482,13 @@ A `DENIED` receipt verifies with the same procedure. Authenticity and outcome ar
 
 A verifier runs these checks after the signature verifies and the canonicalization is `jcs_v3` (section 6.2, steps 5 and 6), in order, and reports the first failure. A failure in any of them is never reported as verified. A third-party verifier never reports it as tampering either, because the signature is intact (for the issuer's own check, see the end of this section).
 
-**First, the payload is a `jcs_v3` payload. Every verifier MUST check it.** `receiptVersion` is the integer `3`, and `publicProjectionJson` is a string holding JSON text of an object whose top-level `projection` is a string. Otherwise: **malformed**. The build rule (3.6) never produces anything else under any tag, so such a receipt is malformed, never one a newer verifier could read.
+**First, the payload is a `jcs_v3` payload. Every verifier MUST check it.** In order:
+
+1. `receiptVersion` is the integer `3`. Otherwise: **malformed**.
+2. `requestCommitment` is a string: `sha256:` followed by 64 lowercase hex characters (3.5). Otherwise: **request commitment malformed**.
+3. `publicProjectionJson` is a string holding JSON text of an object whose top-level `projection` is a string. Otherwise: **malformed**.
+
+No issuer's mint produces anything else under any tag, so such a receipt is malformed, never one a newer verifier could read. A malformed commitment is not **request commitment unavailable**: that code means only that the request text or the salt needed to open a well-formed commitment is missing (step 3).
 
 **Step 1, the projection check. Every verifier MUST run it.** A third party cannot rebuild the projection without the request, but it can check that the signed projection is a possible output of the build rule for the tag it names. That check catches an issuer defect that would publish a field its tag does not allow.
 
@@ -503,9 +509,7 @@ Any failure in items 2 to 6 is **projection not allowed**. It is a policy failur
 
 Item 1 comes first, so a proof signed for an auth method that proves no step-up is a mismatch whatever it holds. Either failure is a policy failure: the issuer signed a decider proof its own format forbids, and the receipt MUST NOT be presented as verified. The shape check compares the proof's canonical text with the canonical text of the keys its shape allows, and treats a key named `__proto__` like any other key (it is outside every shape).
 
-**Then, the commitment's form. Every verifier MUST check it.** `requestCommitment` is `sha256:` followed by 64 lowercase hex characters. Otherwise: **request commitment unavailable**. Nobody can open it, so nothing behind it can ever be checked; the receipt is unverifiable, not tampered.
-
-**Step 3, opening the commitment. A verifier MAY run it when it holds the request text and its salt.** When it also holds the summary the issuer states for the receipt (the owner field `summary`, 3.5), the opening checks that summary too. A stated summary is a string, or `null` for "none". When it holds any of the `companyId`, `idemKey` and `inputHash` the issuer states for the receipt (the owner fields `company_id`, `idem_key` and `input_hash`), the opening checks each one it holds.
+**Step 3, opening the commitment. A verifier MAY run it when it holds the request text and its salt.** Asked to open it without the request text or without the salt (for example, the issuer verifying a receipt whose salt it no longer holds): **request commitment unavailable**. When it also holds the summary the issuer states for the receipt (the owner field `summary`, 3.5), the opening checks that summary too. A stated summary is a string, or `null` for "none". When it holds any of the `companyId`, `idemKey` and `inputHash` the issuer states for the receipt (the owner fields `company_id`, `idem_key` and `input_hash`), the opening checks each one it holds.
 
 1. Compute `"sha256:" + hex(SHA-256(salt || UTF-8(request text)))` over the request text exactly as given. If the result is not the signed `requestCommitment`, or the salt is not 32 bytes: **request commitment mismatch**.
 2. Parse the request text. If it carries `receiptSummary` and that value is not a string, or the verifier holds a stated summary that is not the committed one: **committed summary mismatch**. A stated string holds exactly when `receiptSummary` is that same string; a stated `null` holds exactly when the request carries no `receiptSummary`.
@@ -520,13 +524,13 @@ When step 3 passes, the request text is the one the issuer committed to, the sum
 
 | Code | Class | `tools/verify.mjs` exit |
 |---|---|---|
-| `MALFORMED` | malformed: not a well-formed receipt | 3 |
+| `MALFORMED`, `REQUEST_COMMITMENT_MALFORMED` | malformed: the signed bytes are not a well-formed receipt (for the latter, the signed `requestCommitment` is missing or not `sha256:<64 lowercase hex>`) | 3 |
 | `CANONICALIZATION_UNSUPPORTED`, `PROJECTION_UNSUPPORTED` | unverifiable here, not tampered: a newer verifier may read it | 8 |
-| `REQUEST_COMMITMENT_UNAVAILABLE` | unverifiable, not tampered: the commitment cannot be opened (malformed, or no request and salt where an opening is required) | 8 |
+| `REQUEST_COMMITMENT_UNAVAILABLE` | unverifiable, not tampered: an opening was required, and the request text or the salt it needs is missing | 8 |
 | `PROJECTION_NOT_ALLOWED`, `DECIDER_PROOF_MISMATCH`, `DECIDER_PROOF_INVALID` | policy failure: the signature is valid, and the issuer signed what its own format forbids | 9 |
 | `REQUEST_COMMITMENT_MISMATCH`, `COMMITTED_SUMMARY_MISMATCH`, `RECEIPT_BINDING_MISMATCH`, `PUBLIC_PROJECTION_MISMATCH` | the private record (request, salt, summary, binding values) does not match what was signed: for a third party, the commitment is not opened; for the issuer, its stored record changed outside the signature. Never a forged signature | 10 |
 
-`tools/verify.mjs` runs the checks before step 3 on every `jcs_v3` receipt, and runs step 3 when given `--request <file> --salt <64 hex>`; `--summary <file>` adds a stated summary, read, like the request, as exact text, and `--binding <file>` adds stated binding values, a JSON object holding any of `companyId`, `idemKey` and `inputHash`. Its exit codes are those of the table.
+`tools/verify.mjs` runs the checks before step 3 on every `jcs_v3` receipt, and runs step 3 when given `--request <file> --salt <64 hex>`; `--summary <file>` adds a stated summary, read as exact text less one trailing line ending (`\n` or `\r\n`, so a file written by `echo` or an editor states the summary without it; a summary that itself ends in a line ending needs one more in the file), and `--binding <file>` adds stated binding values, a JSON object holding any of `companyId`, `idemKey` and `inputHash`. Its exit codes are those of the table.
 
 ## 7. Decision and decider semantics
 
@@ -617,7 +621,7 @@ A receipt proves authorization. On the execute lane the issuer also records what
 | `signatureKeyId` | string | always | The same issuer key set as receipts. |
 | `createdAt` | string | always | When the issuer recorded the outcome. |
 
-Consistency rules a verifier checks after the signature: `succeeded` and `failed` carry `startedAt` and `finishedAt`, with `finishedAt` not before `startedAt`; `unknown` carries neither `finishedAt` nor `outputHash` (if either were known, the outcome would be too). The tenant is not signed: receipt ids are unique, and the receipt's own signature binds what was authorized. `schema/attestation-v1.json` encodes the table.
+Consistency rules a verifier checks after the signature: `startedAt` and `finishedAt`, when present, are strings holding an ISO 8601 instant exactly as the table states it (`YYYY-MM-DDTHH:mm:ss.sssZ`, a real date), and `outputHash`, when present, is a string of the stated form; nothing is coerced. `succeeded` and `failed` carry `startedAt` and `finishedAt`, with `finishedAt` not before `startedAt`; `unknown` carries neither `finishedAt` nor `outputHash` (if either were known, the outcome would be too). The tenant is not signed: receipt ids are unique, and the receipt's own signature binds what was authorized. `schema/attestation-v1.json` encodes the table.
 
 ### 9.3 Canonicalization and signature
 

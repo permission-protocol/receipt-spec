@@ -15,13 +15,17 @@
 // (with them) names a JSON file of the values the issuer states for the
 // receipt's companyId, idemKey and inputHash (its owner artifact's company_id,
 // idem_key and input_hash), any subset: each must equal the one the commitment
-// binds under receiptBinding. Exit codes: 0 verified, 1 signature invalid, 2
+// binds under receiptBinding. The summary file is read as exact text less one
+// trailing line ending ("\n" or "\r\n"), so a file `echo` or an editor wrote
+// states the summary without it; a summary that itself ends in a line ending
+// needs one more in the file. Exit codes: 0 verified, 1 signature invalid, 2
 // key not found or revoked, 3 malformed (including a jcs_v3 payload whose
-// receiptVersion is not 3 or whose publicProjectionJson is not JSON text of an
-// object naming a tag), 4 payload does not match its hash or its own
-// canonicalization, 8 unverifiable here, not tampered: a canonicalization or
-// projection tag this verifier does not support, or a signed commitment
-// nobody can open, 9 policy failure: the signature is valid but the signed
+// receiptVersion is not 3, whose signed requestCommitment is missing or not
+// sha256:<64 lowercase hex> (REQUEST_COMMITMENT_MALFORMED), or whose
+// publicProjectionJson is not JSON text of an object naming a tag), 4 payload
+// does not match its hash or its own canonicalization, 8 unverifiable here,
+// not tampered: a canonicalization or projection tag this verifier does not
+// support, 9 policy failure: the signature is valid but the signed
 // record breaks a rule of its own format (a projection outside its
 // allowlist, or a decider proof that is malformed or disagrees with the
 // signed deciderAuthMethod), 10 the supplied request, salt, summary and
@@ -47,7 +51,9 @@ import { buildPublicProjection, checkPublicProjection, readProjectionTag } from 
 /**
  * Exit code per failure code (SPEC.md section 6.2). Receipts: 1 to 4 and 8 to
  * 10; attestations add 5 to 7 (section 9.5). One meaning per code, and one
- * class per exit code: 8 unverifiable here (never a pass, never tampered), 9
+ * class per exit code: 3 malformed (the signed bytes are not a well-formed
+ * receipt), 8 unverifiable here (never a pass, never tampered: a version
+ * this verifier does not implement, or opening material it was not given), 9
  * the issuer signed what its own format forbids, 10 the private record
  * supplied with the receipt (request, salt, summary, binding) is not the one
  * the signature committed to.
@@ -62,6 +68,7 @@ export const EXIT_CODES = Object.freeze({
   ATTESTATION_UNSIGNED: 5,
   PAYLOAD_WITHHELD: 6,
   ATTESTATION_INCONSISTENT: 7,
+  REQUEST_COMMITMENT_MALFORMED: 3,
   CANONICALIZATION_UNSUPPORTED: 8,
   PROJECTION_UNSUPPORTED: 8,
   REQUEST_COMMITMENT_UNAVAILABLE: 8,
@@ -176,24 +183,24 @@ export function verifyArtifact(envelope, keySet, options = {}) {
   }
 
   // jcs_v3, section 6.7. Signed and intact. A jcs_v3 payload is receipt
-  // version 3, and its projection is JSON text of an object naming a tag
-  // (malformed otherwise: no build rule produces anything else). Step 1: the
+  // version 3, its signed requestCommitment is sha256:<64 lowercase hex>, and
+  // its projection is JSON text of an object naming a tag (malformed
+  // otherwise: no issuer's mint produces anything else). Step 1: the
   // projection must be one the build rule could have produced for its tag (a
   // policy failure if not: the signature is valid, the issuer published a
   // field it must not have). Step 2: the signed decider proof must agree with
   // the signed auth method and keep its frozen shape (a policy failure if
-  // not). Then the signed commitment must be one an opening could reproduce
-  // (unavailable if not: nobody can open it).
+  // not).
   if (payload.receiptVersion !== 3) {
     return fail(3, "MALFORMED", `a jcs_v3 payload is receiptVersion 3, not ${JSON.stringify(payload.receiptVersion ?? null)}`);
+  }
+  if (typeof payload.requestCommitment !== "string" || !REQUEST_COMMITMENT_PATTERN.test(payload.requestCommitment)) {
+    return fail(3, "REQUEST_COMMITMENT_MALFORMED", "the signed requestCommitment is missing or is not sha256:<64 lowercase hex>");
   }
   const checked = checkPublicProjection(payload.publicProjectionJson);
   if (!checked.ok) return fail(EXIT_CODES[checked.code], checked.code, checked.message);
   const proofProblem = checkDeciderProof(payload.deciderAuthMethod, payload.deciderProof);
   if (proofProblem) return fail(EXIT_CODES[proofProblem.code], proofProblem.code, proofProblem.message);
-  if (typeof payload.requestCommitment !== "string" || !REQUEST_COMMITMENT_PATTERN.test(payload.requestCommitment)) {
-    return fail(8, "REQUEST_COMMITMENT_UNAVAILABLE", "the signed requestCommitment is missing or is not sha256:<64 lowercase hex>, so nobody can open it");
-  }
   const v3 = { ...result, projection: checked.projection, projectionTag: checked.tag, deciderProof: payload.deciderProof ?? null, commitmentOpened: false };
   if (!options.opening) return v3;
   // Step 3, the holder of the request and its salt.
@@ -228,8 +235,11 @@ export function committedSummaryOf(requestJson) {
  * instead (step 2).
  */
 export function openRequestCommitment(payload, requestJson, salt, options = {}) {
+  // A signed commitment that is not sha256:<64 lowercase hex> is a malformed
+  // receipt; REQUEST_COMMITMENT_UNAVAILABLE means only that the request text
+  // or the salt needed to open a well-formed one is missing.
   if (typeof payload?.requestCommitment !== "string" || !REQUEST_COMMITMENT_PATTERN.test(payload.requestCommitment)) {
-    return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "this receipt signs no well-formed request commitment" };
+    return { code: "REQUEST_COMMITMENT_MALFORMED", message: "the signed requestCommitment is missing or is not sha256:<64 lowercase hex>" };
   }
   if (typeof requestJson !== "string" || salt == null || salt.length === 0) {
     return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "an opening needs the exact request text and its salt" };
@@ -304,6 +314,13 @@ export function openRequestCommitment(payload, requestJson, salt, options = {}) 
 
 const OUTCOMES = new Set(["succeeded", "failed", "unknown"]);
 const OUTPUT_HASH = /^sha256:[0-9a-f]{64}$/;
+
+/** An ISO 8601 instant exactly as the issuer writes one: YYYY-MM-DDTHH:mm:ss.sssZ, a real calendar date. */
+function isIsoInstant(value) {
+  if (typeof value !== "string") return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
+}
 
 /**
  * Verify an execution attestation envelope (SPEC.md section 9.5) against a key
@@ -382,10 +399,20 @@ export function verifyAttestationArtifact(envelope, keySet, receiptEnvelope, opt
   return { ok: true, attestation, receipt: receipt.payload, outcome: attestation.outcome };
 }
 
-/** Section 9.2 consistency rules; null when the claims agree. */
+/**
+ * Section 9.2 consistency rules; null when the claims agree. startedAt and
+ * finishedAt, when present, are ISO 8601 instants exactly as the issuer
+ * writes them (schema/attestation-v1.json), and outputHash is the string
+ * sha256:<64 hex>; nothing is coerced.
+ */
 export function attestationClaimProblem(attestation) {
   if (!OUTCOMES.has(attestation.outcome)) return `unknown outcome ${attestation.outcome}`;
-  if (attestation.outputHash !== undefined && !OUTPUT_HASH.test(attestation.outputHash)) return "outputHash is not sha256:<64 hex>";
+  if (attestation.outputHash !== undefined && (typeof attestation.outputHash !== "string" || !OUTPUT_HASH.test(attestation.outputHash))) {
+    return "outputHash is not sha256:<64 hex>";
+  }
+  for (const field of ["startedAt", "finishedAt"]) {
+    if (attestation[field] !== undefined && !isIsoInstant(attestation[field])) return `${field} is not an ISO 8601 instant (YYYY-MM-DDTHH:mm:ss.sssZ)`;
+  }
   if (attestation.outcome === "unknown") {
     if (attestation.finishedAt !== undefined) return "an unknown outcome has no finish time";
     if (attestation.outputHash !== undefined) return "an unknown outcome has no output";
@@ -394,8 +421,18 @@ export function attestationClaimProblem(attestation) {
   if (attestation.startedAt === undefined || attestation.finishedAt === undefined) {
     return `a ${attestation.outcome} outcome has a start and a finish time`;
   }
-  if (new Date(attestation.finishedAt) < new Date(attestation.startedAt)) return "finishedAt is before startedAt";
+  if (Date.parse(attestation.finishedAt) < Date.parse(attestation.startedAt)) return "finishedAt is before startedAt";
   return null;
+}
+
+/**
+ * A stated summary read from a file (--summary): the exact text, less one
+ * trailing line ending ("\n" or "\r\n"). Nothing else is trimmed.
+ */
+export function summaryFromFile(text) {
+  if (text.endsWith("\r\n")) return text.slice(0, -2);
+  if (text.endsWith("\n")) return text.slice(0, -1);
+  return text;
 }
 
 function fail(exitCode, code, message) {
@@ -435,7 +472,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       : {
           requestJson: readFileSync(flags.request, "utf8"),
           salt: Buffer.from(flags.salt, "hex"),
-          summary: flags.summary === undefined ? undefined : readFileSync(flags.summary, "utf8"),
+          summary: flags.summary === undefined ? undefined : summaryFromFile(readFileSync(flags.summary, "utf8")),
           binding: flags.binding === undefined ? undefined : JSON.parse(readFileSync(flags.binding, "utf8")),
         };
   const envelope = JSON.parse(readFileSync(artifactPath, "utf8"));

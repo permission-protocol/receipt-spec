@@ -27,9 +27,9 @@ jobs:
           if node tools/verify.mjs test-vectors/attestations/tampered-attest-failed-human-execute-lane-create-pr.json test-vectors/keys.json --receipt test-vectors/approve-human-execute-lane-create-pr.json; then
             echo "tampered attestation verified; that is a bug" && exit 1
           fi
-      - name: Verify one jcs_v3 receipt and open its commitment, with its stated summary and binding, through the reference CLI
+      - name: Verify one jcs_v3 receipt and open its commitment, with its stated summary (file ends in a newline, as echo writes it) and binding, through the reference CLI
         run: |
-          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/salt", c.salt_hex); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/summary.txt", c.summary); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/binding.json", JSON.stringify(c.binding))'
+          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/salt", c.salt_hex); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/summary.txt", c.summary + "\n"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/binding.json", JSON.stringify(c.binding))'
           node tools/verify.mjs test-vectors/v3/approve-human-deploy-gate-private-repo.json test-vectors/keys.json \
             --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$(cat "$RUNNER_TEMP/salt")" \
             --summary "$RUNNER_TEMP/summary.txt" --binding "$RUNNER_TEMP/binding.json"

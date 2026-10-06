@@ -40,7 +40,7 @@ import {
   checkPublicProjection,
   projectionProblem,
 } from "../tools/public-projection.mjs";
-import { EXIT_CODES, openRequestCommitment, verifyArtifact } from "../tools/verify.mjs";
+import { EXIT_CODES, openRequestCommitment, summaryFromFile, verifyArtifact } from "../tools/verify.mjs";
 import { validate } from "./mini-schema.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -535,8 +535,11 @@ test("an opening is refused for a receipt that is not jcs_v3, and needs a 32-byt
   const payload = decode(read(`test-vectors/v3/${entry.receipt_vector}`));
   const requestJson = readText(`test-vectors/v3/openings/${entry.request_file}`);
   assert.equal(openRequestCommitment(payload, requestJson, Buffer.from(entry.salt_hex, "hex").subarray(0, 31)).code, "REQUEST_COMMITMENT_MISMATCH");
+  // Unavailable means only that the opening material is missing; a signed commitment of the wrong form is malformed.
   assert.equal(openRequestCommitment(payload, requestJson, null).code, "REQUEST_COMMITMENT_UNAVAILABLE");
-  assert.equal(openRequestCommitment({ ...payload, requestCommitment: undefined }, requestJson, Buffer.alloc(32)).code, "REQUEST_COMMITMENT_UNAVAILABLE");
+  assert.equal(openRequestCommitment(payload, undefined, Buffer.alloc(32)).code, "REQUEST_COMMITMENT_UNAVAILABLE");
+  assert.equal(openRequestCommitment({ ...payload, requestCommitment: undefined }, requestJson, Buffer.alloc(32)).code, "REQUEST_COMMITMENT_MALFORMED");
+  assert.equal(openRequestCommitment({ ...payload, requestCommitment: "sha256:XYZ" }, requestJson, Buffer.alloc(32)).code, "REQUEST_COMMITMENT_MALFORMED");
 });
 
 test("an unknown canonicalization fails closed as unsupported, never as tampered or under another list", () => {
@@ -581,16 +584,32 @@ test("an unknown projection tag fails closed as unsupported, even with a valid s
   }
 });
 
-test("a signed requestCommitment nobody can open is unavailable (8), for every verifier", () => {
+test("a signed requestCommitment that is missing or not sha256:<64 lowercase hex> is malformed (3), for every verifier", () => {
   const payload = decode(read("test-vectors/v3/approve-human-execute-lane-refund.json"));
-  for (const requestCommitment of [undefined, "sha256:XYZ", `sha256:${"A".repeat(64)}`, "7cf143f6cad103ccdc2cf1d026420650de227501d16883f896eac5c23caec0c1"]) {
+  for (const requestCommitment of [undefined, "sha256:XYZ", `sha256:${"A".repeat(64)}`, "7cf143f6cad103ccdc2cf1d026420650de227501d16883f896eac5c23caec0c1", 7]) {
     const signed = { ...payload, requestCommitment };
     if (requestCommitment === undefined) delete signed.requestCommitment;
     const result = verifyArtifact(signedEnvelope(signed), keys);
-    assert.equal(result.code, "REQUEST_COMMITMENT_UNAVAILABLE", String(requestCommitment));
-    assert.equal(result.exitCode, 8);
+    assert.equal(result.code, "REQUEST_COMMITMENT_MALFORMED", String(requestCommitment));
+    assert.equal(result.exitCode, 3);
   }
+  // Checked with the other well-formedness rules, before the projection and the decider proof (as the issuer's public check does).
+  const both = verifyArtifact(signedEnvelope({ ...payload, requestCommitment: "sha256:XYZ", publicProjectionJson: '{"projection":"execute/v1","tenantId":"co_1"}' }), keys);
+  assert.equal(both.code, "REQUEST_COMMITMENT_MALFORMED");
+  // One meaning per code: unavailable (8) is missing opening material only; malformed (3) is the signed form.
+  assert.equal(EXIT_CODES.REQUEST_COMMITMENT_MALFORMED, 3);
   assert.equal(EXIT_CODES.REQUEST_COMMITMENT_UNAVAILABLE, 8);
+});
+
+test("--summary reads the file less exactly one trailing line ending", () => {
+  assert.equal(summaryFromFile("Approved"), "Approved");
+  assert.equal(summaryFromFile("Approved\n"), "Approved");
+  assert.equal(summaryFromFile("Approved\r\n"), "Approved");
+  assert.equal(summaryFromFile("Approved\n\n"), "Approved\n");
+  assert.equal(summaryFromFile("Approved\r"), "Approved\r");
+  assert.equal(summaryFromFile(" Approved "), " Approved ");
+  assert.equal(summaryFromFile("\n"), "");
+  assert.equal(summaryFromFile(""), "");
 });
 
 test("the key and the signature are checked before the canonicalization: only a verified signature over an unknown one is unsupported", () => {
