@@ -408,7 +408,7 @@ A `DENIED` receipt verifies with the same procedure. Authenticity and outcome ar
 
 ### 6.7 Verifying a `jcs_v3` receipt
 
-A verifier runs these steps after the signature verifies (section 6.2, step 6). A failure in either step is never reported as verified, and never as tampering: the signature is intact.
+A verifier runs these steps after the signature verifies (section 6.2, step 6). A failure in either step is never reported as verified. A third-party verifier never reports it as tampering either, because the signature is intact (for the issuer's own check, see the end of this section).
 
 **Step 1, the projection check. Every verifier MUST run it.** A third party cannot rebuild the projection without the request, but it can check that the signed projection is a possible output of the build rule for the tag it names. That check catches an issuer defect that would publish a field its tag does not allow.
 
