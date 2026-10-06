@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/permission-protocol/receipt-spec/schema/artifact.json",
   "title": "Permission Protocol receipt artifact envelope",
-  "description": "The portable form of a receipt: the exact signed bytes, the signature, the digest, and the key identifier. Served publicly at https://app.permissionprotocol.com/r/<receipt_id>.json (signature-intact receipts only) and, tenant-authenticated, at GET /api/v1/receipts/<receipt_id>/artifact. Decode payload_bytes_b64 to obtain the object described by receipt-v2.json (canonicalization jcs_v2) or receipt-v3.json (jcs_v3). The envelope shape is the same for every receipt version; a jcs_v3 receipt's owner surfaces add request_json, request_commitment_salt_b64 and summary.",
+  "description": "The portable form of a receipt: the exact signed bytes, the signature, the digest, and the key identifier. Served publicly at https://app.permissionprotocol.com/r/<receipt_id>.json (signature-intact receipts only) and, tenant-authenticated, at GET /api/v1/receipts/<receipt_id>/artifact. Decode payload_bytes_b64 to obtain the object described by receipt-v2.json (canonicalization jcs_v2) or receipt-v3.json (jcs_v3). The envelope shape is the same for every receipt version; a jcs_v3 receipt's owner surfaces add request_json, request_commitment_salt_b64, summary, company_id, idem_key and input_hash.",
   "type": "object",
   "required": ["artifact"],
   "properties": {
@@ -24,7 +24,10 @@
         "redeemed_at": { "type": ["string", "null"] },
         "request_json": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only (SPEC.md section 3.5), never the public artifact: the committed request, as its exact stored text. Opens requestCommitment with the salt." },
         "request_commitment_salt_b64": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the 32-byte commitment salt, standard base64; null when the issuer no longer holds it." },
-        "summary": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the receipt's summary as the issuer stores it, null when it has none. Not signed: after opening, it must equal the committed receiptSummary (SPEC.md section 6.7)." }
+        "summary": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the receipt's summary as the issuer stores it, null when it has none. Not signed: after opening, it must equal the committed receiptSummary (SPEC.md section 6.7)." },
+        "company_id": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the receipt's companyId as the issuer stores it. Not signed: after opening, it must equal receiptBinding.companyId (SPEC.md sections 3.5 and 6.7)." },
+        "idem_key": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the receipt's idemKey as the issuer stores it, null when it has none. Not signed: after opening, it must equal receiptBinding.idemKey." },
+        "input_hash": { "type": ["string", "null"], "description": "jcs_v3 owner surfaces only: the receipt's inputHash as the issuer stores it, null when it has none. Not signed: after opening, it must equal receiptBinding.inputHash." }
       }
     },
     "attestation_artifact": {

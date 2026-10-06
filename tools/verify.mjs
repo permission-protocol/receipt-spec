@@ -2,7 +2,7 @@
 // execution attestation (SPEC.md section 9). Dependency-free.
 //
 //   node tools/verify.mjs <artifact.json> <keys.json>
-//   node tools/verify.mjs <artifact.json> <keys.json> --request <request.json> --salt <64 hex> [--summary <summary.txt>]
+//   node tools/verify.mjs <artifact.json> <keys.json> --request <request.json> --salt <64 hex> [--summary <summary.txt>] [--binding <binding.json>]
 //   node tools/verify.mjs <attestation.json> <keys.json> --receipt <receipt-artifact.json>
 //
 // All inputs are local files, so this runs with no network and no Permission
@@ -11,24 +11,33 @@
 // committed to, byte for byte, and the salt its 32 bytes in hex (SPEC.md
 // section 6.7). --summary (with them) names a file holding, as exact text, the
 // summary the issuer states for the receipt (its owner artifact's `summary`):
-// it must be the summary the commitment binds under receiptSummary. Exit
-// codes: 0 verified, 1 signature invalid, 2 key not found or revoked, 3
-// malformed, 4 payload does not match its hash or its own canonicalization, 8
-// canonicalization or projection tag not supported by this verifier
-// (unverifiable here, not tampered), 9 policy failure: the signature is valid
-// but the signed record breaks a rule of its own format (a projection outside
-// its allowlist, or a decider proof that is malformed or disagrees with the
-// signed deciderAuthMethod), 10 the supplied request, salt and summary do not
-// open the commitment: the commitment does not reproduce, the summary is not
-// the committed one, or the projection does not rebuild. Attestations add 5,
-// 6 and 7 (section 9.5).
+// it must be the summary the commitment binds under receiptSummary. --binding
+// (with them) names a JSON file of the values the issuer states for the
+// receipt's companyId, idemKey and inputHash (its owner artifact's company_id,
+// idem_key and input_hash), any subset: each must equal the one the commitment
+// binds under receiptBinding. Exit codes: 0 verified, 1 signature invalid, 2
+// key not found or revoked, 3 malformed (including a jcs_v3 payload whose
+// receiptVersion is not 3 or whose publicProjectionJson is not JSON text of an
+// object naming a tag), 4 payload does not match its hash or its own
+// canonicalization, 8 unverifiable here, not tampered: a canonicalization or
+// projection tag this verifier does not support, or a signed commitment
+// nobody can open, 9 policy failure: the signature is valid but the signed
+// record breaks a rule of its own format (a projection outside its
+// allowlist, or a decider proof that is malformed or disagrees with the
+// signed deciderAuthMethod), 10 the supplied request, salt, summary and
+// binding do not open the commitment: the commitment does not reproduce, the
+// summary or binding is not the committed one, or the projection does not
+// rebuild. Attestations add 5, 6 and 7 (section 9.5).
 import { createPublicKey, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   CanonicalizationUnsupportedError,
+  RECEIPT_BINDING_FIELDS,
+  RECEIPT_BINDING_REQUEST_KEY,
   RECEIPT_SUMMARY_REQUEST_KEY,
   attestationBytes,
   canonicalBytes,
+  receiptBindingProblem,
   requestCommitment,
   signingDigest,
 } from "./canonicalize.mjs";
@@ -37,7 +46,11 @@ import { buildPublicProjection, checkPublicProjection, readProjectionTag } from 
 
 /**
  * Exit code per failure code (SPEC.md section 6.2). Receipts: 1 to 4 and 8 to
- * 10; attestations add 5 to 7 (section 9.5).
+ * 10; attestations add 5 to 7 (section 9.5). One meaning per code, and one
+ * class per exit code: 8 unverifiable here (never a pass, never tampered), 9
+ * the issuer signed what its own format forbids, 10 the private record
+ * supplied with the receipt (request, salt, summary, binding) is not the one
+ * the signature committed to.
  */
 export const EXIT_CODES = Object.freeze({
   SIGNATURE_INVALID: 1,
@@ -51,14 +64,18 @@ export const EXIT_CODES = Object.freeze({
   ATTESTATION_INCONSISTENT: 7,
   CANONICALIZATION_UNSUPPORTED: 8,
   PROJECTION_UNSUPPORTED: 8,
+  REQUEST_COMMITMENT_UNAVAILABLE: 8,
   PROJECTION_NOT_ALLOWED: 9,
   DECIDER_PROOF_MISMATCH: 9,
   DECIDER_PROOF_INVALID: 9,
-  REQUEST_COMMITMENT_UNAVAILABLE: 10,
   REQUEST_COMMITMENT_MISMATCH: 10,
   COMMITTED_SUMMARY_MISMATCH: 10,
+  RECEIPT_BINDING_MISMATCH: 10,
   PUBLIC_PROJECTION_MISMATCH: 10,
 });
+
+/** "sha256:" plus 64 lowercase hex: the only form a signed requestCommitment takes (SPEC.md section 3.5). */
+const REQUEST_COMMITMENT_PATTERN = /^sha256:[a-f0-9]{64}$/;
 
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
@@ -73,13 +90,20 @@ export function publicKeyFromRaw(publicKeyB64) {
  * Verify an artifact envelope against a key set. Returns { ok: true, payload }
  * or { ok: false, code, message }. Never throws on bad input.
  *
- * jcs_v3 receipts also get the projection check and the decider proof check
- * (SPEC.md section 6.7, steps 1 and 2) and, when options.opening =
- * { requestJson, salt, summary? } is given, the commitment opening (step 3);
- * the result then carries `projection`, `projectionTag`, `commitmentOpened`
- * and, once opened, `committedSummary`. `opening.summary` is the summary the
- * issuer states for the receipt: a string, null for "none", or undefined when
- * the caller holds none (then only the committed one is reported).
+ * The key and the signature are checked before the canonicalization (SPEC.md
+ * section 6.2): only a verified signature over an unknown canonicalization is
+ * "unsupported"; a bad one fails as a bad signature whatever the bytes claim.
+ *
+ * jcs_v3 receipts also get the well-formedness check, the projection check,
+ * the decider proof check and the commitment form check (SPEC.md section 6.7,
+ * steps 1 and 2) and, when options.opening = { requestJson, salt, summary?,
+ * binding? } is given, the commitment opening (step 3); the result then
+ * carries `projection`, `projectionTag`, `commitmentOpened` and, once opened,
+ * `committedSummary` and `committedBinding`. `opening.summary` is the summary
+ * the issuer states for the receipt: a string, null for "none", or undefined
+ * when the caller holds none (then only the committed one is reported).
+ * `opening.binding` is the companyId, idemKey and inputHash the issuer states
+ * for it, any subset, or undefined when the caller holds none.
  */
 export function verifyArtifact(envelope, keySet, options = {}) {
   const artifact = envelope?.artifact;
@@ -101,26 +125,14 @@ export function verifyArtifact(envelope, keySet, options = {}) {
   } catch {
     return fail(3, "MALFORMED", "payload bytes are not JSON");
   }
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return fail(3, "MALFORMED", "payload bytes are not a JSON object");
   if (payload.signatureKeyId !== artifact.key_id) {
     return fail(3, "MALFORMED", "artifact.key_id disagrees with the signed signatureKeyId");
   }
-  // The bytes must be the canonical form of the object they encode. A payload
-  // that re-canonicalizes to different bytes was not produced by this spec.
-  let recanonical;
-  try {
-    recanonical = canonicalBytes(payload, payload.canonicalization);
-  } catch (error) {
-    // A version this verifier does not define is unverifiable here, not
-    // tampered, and is never re-canonicalized under another version's list.
-    if (error instanceof CanonicalizationUnsupportedError && typeof payload.canonicalization === "string") {
-      return fail(8, "CANONICALIZATION_UNSUPPORTED", `canonicalization ${payload.canonicalization} is not supported by this verifier; the receipt is unverifiable here, not tampered`);
-    }
-    return fail(3, "MALFORMED", error.message);
-  }
-  if (!recanonical.equals(payloadBytes)) {
-    return fail(4, "CANONICAL_MISMATCH", "payload bytes are not the canonical encoding of the payload");
-  }
 
+  // The key and the signature come first: they do not depend on the
+  // canonicalization, and nothing about the bytes is reported before the
+  // signature over them verifies.
   const key = (keySet?.keys ?? []).find((candidate) => candidate.key_id === artifact.key_id);
   if (!key) return fail(2, "KEY_NOT_FOUND", `key ${artifact.key_id} is not in the key set`);
   if (key.alg !== "ed25519") return fail(2, "KEY_NOT_FOUND", `key ${artifact.key_id} is not ed25519`);
@@ -136,6 +148,23 @@ export function verifyArtifact(envelope, keySet, options = {}) {
   if (signature.length !== 64) return fail(3, "MALFORMED", "signature is not 64 bytes");
   if (!verify(null, digest, publicKey, signature)) return fail(1, "SIGNATURE_INVALID", "Ed25519 signature does not verify over the digest");
 
+  // The bytes must be the canonical form of the object they encode. A payload
+  // that re-canonicalizes to different bytes was not produced by this spec.
+  let recanonical;
+  try {
+    recanonical = canonicalBytes(payload, payload.canonicalization);
+  } catch (error) {
+    // A version this verifier does not define is unverifiable here, not
+    // tampered, and is never re-canonicalized under another version's list.
+    if (error instanceof CanonicalizationUnsupportedError && typeof payload.canonicalization === "string") {
+      return fail(8, "CANONICALIZATION_UNSUPPORTED", `canonicalization ${payload.canonicalization} is not supported by this verifier; the signature verifies, and the receipt is unverifiable here, not tampered`);
+    }
+    return fail(3, "MALFORMED", error.message);
+  }
+  if (!recanonical.equals(payloadBytes)) {
+    return fail(4, "CANONICAL_MISMATCH", "payload bytes are not the canonical encoding of the payload");
+  }
+
   const now = options.now ?? new Date();
   const expired = typeof payload.expiresAt === "string" && new Date(payload.expiresAt) < now;
   const result = { ok: true, payload, expired, decision: payload.status, decider: payload.deciderDisplay ?? payload.deciderId ?? null };
@@ -146,22 +175,33 @@ export function verifyArtifact(envelope, keySet, options = {}) {
     return result;
   }
 
-  // jcs_v3, section 6.7. Signed and intact. Step 1: the projection must be
-  // one the build rule could have produced for its tag (a policy failure if
-  // not: the signature is valid, the issuer published a field it must not
-  // have). Step 2: the signed decider proof must agree with the signed auth
-  // method and keep its frozen shape (a policy failure if not).
+  // jcs_v3, section 6.7. Signed and intact. A jcs_v3 payload is receipt
+  // version 3, and its projection is JSON text of an object naming a tag
+  // (malformed otherwise: no build rule produces anything else). Step 1: the
+  // projection must be one the build rule could have produced for its tag (a
+  // policy failure if not: the signature is valid, the issuer published a
+  // field it must not have). Step 2: the signed decider proof must agree with
+  // the signed auth method and keep its frozen shape (a policy failure if
+  // not). Then the signed commitment must be one an opening could reproduce
+  // (unavailable if not: nobody can open it).
+  if (payload.receiptVersion !== 3) {
+    return fail(3, "MALFORMED", `a jcs_v3 payload is receiptVersion 3, not ${JSON.stringify(payload.receiptVersion ?? null)}`);
+  }
   const checked = checkPublicProjection(payload.publicProjectionJson);
   if (!checked.ok) return fail(EXIT_CODES[checked.code], checked.code, checked.message);
   const proofProblem = checkDeciderProof(payload.deciderAuthMethod, payload.deciderProof);
   if (proofProblem) return fail(EXIT_CODES[proofProblem.code], proofProblem.code, proofProblem.message);
+  if (typeof payload.requestCommitment !== "string" || !REQUEST_COMMITMENT_PATTERN.test(payload.requestCommitment)) {
+    return fail(8, "REQUEST_COMMITMENT_UNAVAILABLE", "the signed requestCommitment is missing or is not sha256:<64 lowercase hex>, so nobody can open it");
+  }
   const v3 = { ...result, projection: checked.projection, projectionTag: checked.tag, deciderProof: payload.deciderProof ?? null, commitmentOpened: false };
   if (!options.opening) return v3;
   // Step 3, the holder of the request and its salt.
-  const { requestJson, salt, summary } = options.opening;
-  const problem = openRequestCommitment(payload, requestJson, salt, { summary });
+  const { requestJson, salt, summary, binding } = options.opening;
+  const problem = openRequestCommitment(payload, requestJson, salt, { summary, binding });
   if (problem) return fail(EXIT_CODES[problem.code], problem.code, problem.message);
-  return { ...v3, commitmentOpened: true, committedSummary: committedSummaryOf(requestJson) };
+  const committed = JSON.parse(requestJson);
+  return { ...v3, commitmentOpened: true, committedSummary: committedSummaryOf(requestJson), committedBinding: { ...committed[RECEIPT_BINDING_REQUEST_KEY] } };
 }
 
 /** The summary an opened request commits (receiptSummary), or null when it commits none. */
@@ -176,16 +216,20 @@ export function committedSummaryOf(requestJson) {
  * requestCommitment; the opened request must commit the summary as the
  * issuer's mint does (receiptSummary, a string, present exactly when there is
  * a summary) and, when the caller states a summary (options.summary: a string,
- * or null for none), commit exactly that one; and the projection rebuilt from
- * the request under the signed tag must equal the signed publicProjectionJson
- * byte for byte. Null when all hold, else { code, message }. Same checks, in
- * the same order, as the issuer's checkReceiptV3RequestBinding (app repo,
- * signing/receipt-v3.ts) up to its decider proof check, which every verifier
- * runs on the signed payload instead (step 2).
+ * or null for none), commit exactly that one; it must commit the receipt's
+ * binding as the mint does (receiptBinding, an object with exactly companyId,
+ * idemKey and inputHash, each a string or null) and, when the caller states
+ * any of those values (options.binding), commit exactly those; and the
+ * projection rebuilt from the request under the signed tag must equal the
+ * signed publicProjectionJson byte for byte. Null when all hold, else
+ * { code, message }. Same checks, in the same order, as the issuer's
+ * checkReceiptV3RequestBinding (app repo, signing/receipt-v3.ts) up to its
+ * decider proof check, which every verifier runs on the signed payload
+ * instead (step 2).
  */
 export function openRequestCommitment(payload, requestJson, salt, options = {}) {
-  if (typeof payload?.requestCommitment !== "string" || payload.requestCommitment.length === 0) {
-    return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "this receipt signs no request commitment" };
+  if (typeof payload?.requestCommitment !== "string" || !REQUEST_COMMITMENT_PATTERN.test(payload.requestCommitment)) {
+    return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "this receipt signs no well-formed request commitment" };
   }
   if (typeof requestJson !== "string" || salt == null || salt.length === 0) {
     return { code: "REQUEST_COMMITMENT_UNAVAILABLE", message: "an opening needs the exact request text and its salt" };
@@ -199,9 +243,10 @@ export function openRequestCommitment(payload, requestJson, salt, options = {}) 
   try {
     request = JSON.parse(requestJson);
   } catch {
-    // Not JSON: no committed summary; the projection rebuild below fails too.
+    // Not JSON: no committed summary or binding; the binding check below fails.
   }
-  const hasCommitted = request !== null && typeof request === "object" && !Array.isArray(request) && Object.prototype.hasOwnProperty.call(request, RECEIPT_SUMMARY_REQUEST_KEY);
+  const isObject = request !== null && typeof request === "object" && !Array.isArray(request);
+  const hasCommitted = isObject && Object.prototype.hasOwnProperty.call(request, RECEIPT_SUMMARY_REQUEST_KEY);
   const committed = hasCommitted ? request[RECEIPT_SUMMARY_REQUEST_KEY] : undefined;
   if (hasCommitted && typeof committed !== "string") {
     return { code: "COMMITTED_SUMMARY_MISMATCH", message: `the committed ${RECEIPT_SUMMARY_REQUEST_KEY} is not a string; the issuer commits a summary only as text` };
@@ -216,6 +261,31 @@ export function openRequestCommitment(payload, requestJson, salt, options = {}) 
           ? `the stated summary is not the summary the commitment binds under ${RECEIPT_SUMMARY_REQUEST_KEY}`
           : `a summary is stated, but the committed request binds none (no ${RECEIPT_SUMMARY_REQUEST_KEY})`,
       };
+    }
+  }
+  // The committed binding (section 3.5): always present on a jcs_v3 receipt,
+  // exactly as the mint writes it. When the caller states any of its values,
+  // each stated one must be the committed one.
+  if (!isObject || !Object.prototype.hasOwnProperty.call(request, RECEIPT_BINDING_REQUEST_KEY)) {
+    return { code: "RECEIPT_BINDING_MISMATCH", message: `the committed request carries no ${RECEIPT_BINDING_REQUEST_KEY}; every jcs_v3 receipt's mint commits one` };
+  }
+  const binding = request[RECEIPT_BINDING_REQUEST_KEY];
+  const bindingProblem = receiptBindingProblem(binding);
+  if (bindingProblem) {
+    return { code: "RECEIPT_BINDING_MISMATCH", message: `the committed ${bindingProblem}; the issuer's mint writes exactly companyId, idemKey and inputHash, each a string or null` };
+  }
+  if (options.binding !== undefined) {
+    const stated = options.binding;
+    if (stated === null || typeof stated !== "object" || Array.isArray(stated)) {
+      return { code: "RECEIPT_BINDING_MISMATCH", message: "the stated binding is not an object of companyId, idemKey and inputHash" };
+    }
+    for (const field of Object.keys(stated)) {
+      if (!RECEIPT_BINDING_FIELDS.includes(field)) {
+        return { code: "RECEIPT_BINDING_MISMATCH", message: `the stated binding names ${JSON.stringify(field)}, which receiptBinding does not carry` };
+      }
+      if (stated[field] !== binding[field]) {
+        return { code: "RECEIPT_BINDING_MISMATCH", message: `the stated ${field} is not the ${field} the commitment binds under ${RECEIPT_BINDING_REQUEST_KEY}` };
+      }
     }
   }
   const tag = typeof payload.publicProjectionJson === "string" ? readProjectionTag(payload.publicProjectionJson) : null;
@@ -334,7 +404,7 @@ function fail(exitCode, code, message) {
 
 function usage(message) {
   if (message) console.error(message);
-  console.error("usage: node tools/verify.mjs <artifact.json> <keys.json> [--request <request.json> --salt <64 hex> [--summary <summary.txt>]]");
+  console.error("usage: node tools/verify.mjs <artifact.json> <keys.json> [--request <request.json> --salt <64 hex> [--summary <summary.txt>] [--binding <binding.json>]]");
   console.error("       node tools/verify.mjs <attestation.json> <keys.json> --receipt <receipt-artifact.json>");
   process.exit(64);
 }
@@ -344,7 +414,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const flags = {};
   const positional = [];
   for (let index = 0; index < args.length; index += 1) {
-    const flag = args[index].match(/^--(receipt|request|salt|summary)$/);
+    const flag = args[index].match(/^--(receipt|request|salt|summary|binding)$/);
     if (!flag) {
       positional.push(args[index]);
       continue;
@@ -358,6 +428,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if ((flags.request === undefined) !== (flags.salt === undefined)) usage("--request and --salt go together: the commitment opens with both");
   if (flags.salt !== undefined && !/^[0-9a-fA-F]{64}$/.test(flags.salt)) usage("--salt is the 32-byte salt as 64 hex characters");
   if (flags.summary !== undefined && flags.request === undefined) usage("--summary is checked against the opened commitment: add --request and --salt");
+  if (flags.binding !== undefined && flags.request === undefined) usage("--binding is checked against the opened commitment: add --request and --salt");
   const opening =
     flags.request === undefined
       ? undefined
@@ -365,11 +436,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
           requestJson: readFileSync(flags.request, "utf8"),
           salt: Buffer.from(flags.salt, "hex"),
           summary: flags.summary === undefined ? undefined : readFileSync(flags.summary, "utf8"),
+          binding: flags.binding === undefined ? undefined : JSON.parse(readFileSync(flags.binding, "utf8")),
         };
   const envelope = JSON.parse(readFileSync(artifactPath, "utf8"));
   const keySet = JSON.parse(readFileSync(keysPath, "utf8"));
   if (envelope.attestation_artifact && !envelope.artifact) {
-    if (opening) usage("--request, --salt and --summary open a jcs_v3 receipt's commitment, not an attestation");
+    if (opening) usage("--request, --salt, --summary and --binding open a jcs_v3 receipt's commitment, not an attestation");
     if (!receiptPath) {
       console.error("an attestation is verified with the receipt it attests: add --receipt <receipt-artifact.json>");
       process.exit(64);
@@ -404,6 +476,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(`commitment: ${result.payload.requestCommitment} opened with the supplied request and salt; the projection rebuilds from it byte for byte`);
       const summaryText = result.committedSummary === null ? "none" : JSON.stringify(result.committedSummary);
       console.log(`summary: ${summaryText} (committed, not in the signed bytes${opening.summary === undefined ? "; not compared with a stated summary" : "; equals the stated summary"})`);
+      const bound = result.committedBinding;
+      console.log(
+        `binding: companyId ${JSON.stringify(bound.companyId)}, idemKey ${JSON.stringify(bound.idemKey)}, inputHash ${JSON.stringify(bound.inputHash)} (committed, not in the signed bytes${opening.binding === undefined ? "; not compared with stated values" : "; equals the stated values"})`
+      );
     } else {
       console.log(`commitment: ${result.payload.requestCommitment} (not opened; the request holder opens it with --request <file> --salt <hex>)`);
     }

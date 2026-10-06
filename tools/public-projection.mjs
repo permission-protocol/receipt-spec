@@ -36,6 +36,12 @@ const EXECUTE_ENVIRONMENTS = ["development", "staging", "production"];
 // Field flags: `id` an identifier slot; `oneOf` an enumerated slot;
 // `repositoryIdentity` (marked † in SPEC.md) copied only when the request's
 // scope.visibility is exactly "public".
+//
+// recordedDecisions[] carries displayName and at, never authMethod: only the
+// final signer's step-up is signed (deciderProof, SPEC.md 3.8), so an earlier
+// signer's auth method would be a public claim with no proof behind it
+// (SPEC.md 3.7). No jcs_v3 receipt had been issued when this was decided, so
+// deploy_gate/v1 was edited in place, before its first use.
 
 /** The deploy-gate request scope, shared by deploy_gate/v1 and revocation/v1. */
 const SCOPE_FIELDS = [
@@ -79,7 +85,6 @@ const DEPLOY_GATE_V1 = [
   { path: "policyAuthorization.headSha" },
   { path: "policyAuthorization.branch", repositoryIdentity: true },
   { path: "policyAuthorization.recordedDecisions[].displayName" },
-  { path: "policyAuthorization.recordedDecisions[].authMethod" },
   { path: "policyAuthorization.recordedDecisions[].at" },
   { path: "metadata.deployGateRequestId" },
   { path: "metadata.denial.category" },
@@ -104,7 +109,6 @@ const DEPLOY_GATE_V1 = [
   { path: "deploymentRenewal.mergeCommitSha" },
   { path: "deploymentRenewal.rulesHash" },
   { path: "deploymentRenewal.recordedDecisions[].displayName" },
-  { path: "deploymentRenewal.recordedDecisions[].authMethod" },
   { path: "deploymentRenewal.recordedDecisions[].at" },
 ];
 
@@ -254,7 +258,11 @@ function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (!isPlainObject(value)) return value;
   const sorted = {};
-  for (const key of Object.keys(value).sort()) sorted[key] = sortKeys(value[key]);
+  // defineProperty, not assignment: a JSON key named "__proto__" stays an own
+  // key of the copy (assignment would set the prototype and drop the key).
+  for (const key of Object.keys(value).sort()) {
+    Object.defineProperty(sorted, key, { value: sortKeys(value[key]), enumerable: true, writable: true, configurable: true });
+  }
   return sorted;
 }
 
@@ -404,15 +412,34 @@ export function projectionProblem(publicProjectionJson) {
 }
 
 /**
- * The verifier's projection step: { ok: true, tag, projection } or
- * { ok: false, code: "PROJECTION_UNSUPPORTED" | "PROJECTION_NOT_ALLOWED", message }.
+ * The verifier's projection step (SPEC.md section 6.7, step 1), parsing the
+ * text once: { ok: true, tag, projection } or { ok: false, code, message }.
+ * MALFORMED when publicProjectionJson is missing, is not JSON text of an
+ * object, or names no tag as a string: the build rule never produces that,
+ * under any tag, so it is a malformed receipt, not a newer one.
+ * PROJECTION_UNSUPPORTED when it names a tag this module does not know: a
+ * newer verifier may know it. PROJECTION_NOT_ALLOWED when it names a known tag
+ * and breaks that tag's rules.
  */
 export function checkPublicProjection(publicProjectionJson) {
-  const tag = typeof publicProjectionJson === "string" ? readProjectionTag(publicProjectionJson) : null;
-  if (!tag) {
-    return { ok: false, code: "PROJECTION_UNSUPPORTED", message: "the signed publicProjectionJson names no projection tag this verifier supports" };
+  if (typeof publicProjectionJson !== "string") {
+    return { ok: false, code: "MALFORMED", message: "the signed jcs_v3 payload carries no publicProjectionJson string" };
+  }
+  let projection;
+  try {
+    projection = JSON.parse(publicProjectionJson);
+  } catch {
+    return { ok: false, code: "MALFORMED", message: "the signed publicProjectionJson is not JSON" };
+  }
+  if (!isPlainObject(projection)) return { ok: false, code: "MALFORMED", message: "the signed publicProjectionJson is not a JSON object" };
+  if (typeof projection.projection !== "string") {
+    return { ok: false, code: "MALFORMED", message: "the signed publicProjectionJson names no projection tag" };
+  }
+  const tag = projection.projection;
+  if (!isProjectionTag(tag)) {
+    return { ok: false, code: "PROJECTION_UNSUPPORTED", message: `the signed publicProjectionJson names projection tag ${JSON.stringify(tag)}, which this verifier does not support` };
   }
   const problem = projectionProblem(publicProjectionJson);
   if (problem) return { ok: false, code: "PROJECTION_NOT_ALLOWED", message: `${tag}: ${problem}` };
-  return { ok: true, tag, projection: JSON.parse(publicProjectionJson) };
+  return { ok: true, tag, projection };
 }

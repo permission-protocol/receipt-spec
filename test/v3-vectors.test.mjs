@@ -10,20 +10,25 @@
 // schema/receipt-v3.json, and carry none of the fields jcs_v3 dropped (summary
 // among them) or any private value of its request. The tampered one must fail
 // at the signature; the outside-allowlist and decider-proof ones must verify
-// their signature and fail as a policy failure. test-vectors/v3/openings/
-// holds the commitment openings, with the summary stated beside each, and
-// their expected results.
+// their signature and fail as a policy failure; the no-binding one verifies
+// for a third party and fails its opening. test-vectors/v3/openings/ holds the
+// commitment openings, with the summary and binding values stated beside
+// each, and their expected results.
 import assert from "node:assert/strict";
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  RECEIPT_BINDING_FIELDS,
+  RECEIPT_BINDING_REQUEST_KEY,
   RECEIPT_SUMMARY_REQUEST_KEY,
+  RESERVED_REQUEST_KEYS,
   SIGNED_FIELDS_V3,
   canonicalBytes,
   canonicalize,
   committedRequestJson,
+  receiptBindingFor,
   requestCommitment,
   signingDigest,
 } from "../tools/canonicalize.mjs";
@@ -75,6 +80,11 @@ function signedEnvelope(payload, key = testKey) {
 
 /** The summary an opening case states: the case's `summary` when it has one, else none stated (undefined). */
 const statedSummary = (entry) => (Object.prototype.hasOwnProperty.call(entry, "summary") ? entry.summary : undefined);
+/** The binding values an opening case states: the case's `binding` when it has one, else none stated (undefined). */
+const statedBinding = (entry) => (Object.prototype.hasOwnProperty.call(entry, "binding") ? entry.binding : undefined);
+/** The opening case whose request is this receipt's own committed request. */
+const ownOpening = (name) => openings.find((entry) => entry.receipt_vector === name && entry.request_file === name.replace(/\.json$/, ".request.json"))
+  ?? openings.find((entry) => entry.receipt_vector === name && entry.expected === "opened");
 
 test("the v3 vector set: every lane, both repository visibilities, both decider proof methods, and the negative vectors", () => {
   const verified = files.filter((name) => read(`test-vectors/v3/${name}`).expected === "verified");
@@ -84,6 +94,8 @@ test("the v3 vector set: every lane, both repository visibilities, both decider 
   assert.ok(visibilities.includes("public") && visibilities.includes("private"));
   const proofs = verified.map((name) => read(`test-vectors/v3/${name}`).receipt.deciderProof?.method ?? null).sort();
   assert.deepEqual([...new Set(proofs)].sort(), [null, "reauth", "webauthn"].sort());
+  // One verified vector is a defect only an opening catches: no receiptBinding.
+  assert.ok(verified.includes("no-binding-approve-human-execute-lane-refund.json"));
   assert.deepEqual(
     files.map((name) => read(`test-vectors/v3/${name}`).expected).filter((expected) => expected !== "verified").sort(),
     ["DECIDER_PROOF_INVALID", "DECIDER_PROOF_MISMATCH", "PROJECTION_NOT_ALLOWED", "SIGNATURE_INVALID"]
@@ -173,12 +185,17 @@ for (const name of files) {
     for (const dropped of ["companyId", "idemKey", "requestJson", "inputHash", "requestCommitmentSalt", "summary", "deciderProofJson"]) {
       assert.equal(payload[dropped], undefined, `${dropped} must not be signed under jcs_v3`);
     }
-    const opening = openings.find((entry) => entry.receipt_vector === name && entry.expected === "opened");
+    const opening = ownOpening(name);
     const request = JSON.parse(readText(`test-vectors/v3/openings/${opening.request_file}`));
     // The summary is committed, never signed: it is in the request and nowhere in the bytes.
     assert.equal(typeof request[RECEIPT_SUMMARY_REQUEST_KEY], "string");
     assert.ok(!text.includes(request[RECEIPT_SUMMARY_REQUEST_KEY]), "the committed summary appears in the signed bytes");
     assert.ok(!text.includes(RECEIPT_SUMMARY_REQUEST_KEY));
+    // So is the binding: its workspace, idempotency key and input hash are nowhere in the bytes.
+    assert.ok(!text.includes(RECEIPT_BINDING_REQUEST_KEY));
+    for (const value of Object.values(request[RECEIPT_BINDING_REQUEST_KEY] ?? {})) {
+      if (value !== null) assert.ok(!text.includes(value), `the committed binding value ${value} appears in the signed bytes`);
+    }
     const salt = Buffer.from(opening.salt_hex, "hex");
     assert.ok(!text.includes(opening.salt_hex) && !text.includes(salt.toString("base64")), "the salt never appears in the bytes");
     assert.ok(!text.includes(request.tenantId ?? "co_vector_tenant_0001"), "the tenant never appears in the bytes");
@@ -224,7 +241,7 @@ test("v3 private-repository vector: no repository identity, while commit, enviro
   assert.equal(vector.projection.policy.authorizationBinding.repository, undefined);
 });
 
-test("v3 public-repository vector: repository identity present, recorded decisions without user ids, a reauth proof", () => {
+test("v3 public-repository vector: repository identity present, recorded decisions without user ids or auth methods, a reauth proof", () => {
   const vector = read("test-vectors/v3/approve-human-deploy-gate-public-repo.json");
   const { projection } = vector;
   assert.equal(vector.receipt.deciderAuthMethod, "session_reauth");
@@ -235,76 +252,157 @@ test("v3 public-repository vector: repository identity present, recorded decisio
   assert.equal(projection.scope.ref, "refs/pull/1204/merge");
   assert.equal(projection.policy.authorizationBinding.prNumber, 1204);
   assert.deepEqual(projection.policy.decision.matchedInputs.changedPaths, ["packages/sdk/package.json", "packages/sdk/src/client.ts"]);
+  // Only the final signer's step-up is signed (deciderProof), so no recorded
+  // decision publishes an auth method: it would be a claim with no proof behind it.
   assert.deepEqual(projection.policyAuthorization.recordedDecisions.map((decision) => Object.keys(decision).sort()), [
-    ["at", "authMethod", "displayName"],
-    ["at", "authMethod", "displayName"],
+    ["at", "displayName"],
+    ["at", "displayName"],
   ]);
+  const committedDecisions = JSON.parse(readText("test-vectors/v3/openings/approve-human-deploy-gate-public-repo.request.json")).policyAuthorization.recordedDecisions;
+  assert.ok(committedDecisions.every((decision) => typeof decision.authMethod === "string"), "the committed request keeps each recorded auth method");
   const text = Buffer.from(vector.artifact.payload_bytes_b64, "base64").toString("utf8");
-  for (const secret of ["usr_vec_alice_00000001", "Every SDK release needs two maintainers", "Bumps the SDK", "approvalRequirements", "requirements"]) {
+  for (const secret of ["usr_vec_alice_00000001", "Every SDK release needs two maintainers", "Bumps the SDK", "approvalRequirements", "requirements", "authMethod"]) {
     assert.ok(!text.includes(secret), `${secret} is in the signed bytes`);
   }
 });
 
 test("v3 commitment openings (openings.json): each case gives its expected result", () => {
   assert.ok(openings.length >= 8);
+  const tally = {};
   for (const entry of openings) {
     const vector = read(`test-vectors/v3/${entry.receipt_vector}`);
     const payload = decode(vector);
     const requestJson = readText(`test-vectors/v3/openings/${entry.request_file}`);
     const salt = Buffer.from(entry.salt_hex, "hex");
     const summary = statedSummary(entry);
+    const binding = statedBinding(entry);
     assert.equal(salt.length, 32);
-    const problem = openRequestCommitment(payload, requestJson, salt, { summary });
+    const problem = openRequestCommitment(payload, requestJson, salt, { summary, binding });
     assert.equal(problem ? problem.code : "opened", entry.expected, `${entry.receipt_vector} with ${entry.request_file}: ${entry.note}`);
+    tally[entry.expected] = (tally[entry.expected] ?? 0) + 1;
     if (entry.expected === "opened") {
       assert.equal(requestCommitment(salt, requestJson), payload.requestCommitment);
-      const result = verifyArtifact(vector, keys, { opening: { requestJson, salt, summary } });
+      const result = verifyArtifact(vector, keys, { opening: { requestJson, salt, summary, binding } });
       assert.equal(result.ok, true, result.message);
       assert.equal(result.commitmentOpened, true);
       assert.equal(result.committedSummary, JSON.parse(requestJson)[RECEIPT_SUMMARY_REQUEST_KEY] ?? null);
       if (summary !== undefined) assert.equal(result.committedSummary, summary);
+      assert.deepEqual(result.committedBinding, JSON.parse(requestJson)[RECEIPT_BINDING_REQUEST_KEY]);
+      if (binding !== undefined) assert.deepEqual({ ...result.committedBinding, ...binding }, result.committedBinding);
     } else if (vector.expected === "verified") {
-      const result = verifyArtifact(vector, keys, { opening: { requestJson, salt, summary } });
+      const result = verifyArtifact(vector, keys, { opening: { requestJson, salt, summary, binding } });
       assert.equal(result.code, entry.expected);
       assert.equal(result.exitCode, 10);
       assert.equal(EXIT_CODES[entry.expected], 10);
     }
   }
-  const expected = new Set(openings.map((entry) => entry.expected));
-  for (const code of ["opened", "REQUEST_COMMITMENT_MISMATCH", "COMMITTED_SUMMARY_MISMATCH", "PUBLIC_PROJECTION_MISMATCH"]) assert.ok(expected.has(code), `no ${code} case`);
+  assert.deepEqual(tally, { opened: 5, REQUEST_COMMITMENT_MISMATCH: 3, COMMITTED_SUMMARY_MISMATCH: 2, RECEIPT_BINDING_MISMATCH: 2, PUBLIC_PROJECTION_MISMATCH: 1 });
+  // At least one opened case compares stated binding values, and one fails on them.
+  assert.ok(openings.some((entry) => entry.expected === "opened" && entry.binding));
+  assert.ok(openings.some((entry) => entry.expected === "RECEIPT_BINDING_MISMATCH" && entry.binding));
+  assert.ok(openings.some((entry) => entry.expected === "RECEIPT_BINDING_MISMATCH" && !entry.binding));
 });
 
-test("v3 committed requests are canonical text that commits the summary, and each projection rebuilds from its request", () => {
+test("v3 committed requests are canonical text that commits the binding and the summary, and each projection rebuilds from its request", () => {
   for (const entry of openings.filter((candidate) => candidate.expected === "opened")) {
     const requestJson = readText(`test-vectors/v3/openings/${entry.request_file}`);
     assert.equal(requestJson, JSON.stringify(sortDeep(JSON.parse(requestJson))), `${entry.request_file} is not canonical`);
-    const payload = decode(read(`test-vectors/v3/${entry.receipt_vector}`));
+    const vector = read(`test-vectors/v3/${entry.receipt_vector}`);
+    const payload = decode(vector);
     const tag = JSON.parse(payload.publicProjectionJson).projection;
     assert.equal(buildPublicProjection(tag, requestJson), payload.publicProjectionJson);
-    // The mint's rule: the request handed to it, plus the summary under receiptSummary.
-    const { [RECEIPT_SUMMARY_REQUEST_KEY]: committed, ...request } = JSON.parse(requestJson);
+    // The mint's rule: the request handed to it, plus the binding under
+    // receiptBinding and the summary under receiptSummary.
+    const { [RECEIPT_SUMMARY_REQUEST_KEY]: committed, [RECEIPT_BINDING_REQUEST_KEY]: binding, ...request } = JSON.parse(requestJson);
     assert.equal(typeof committed, "string");
-    assert.equal(committedRequestJson(JSON.stringify(sortDeep(request)), committed), requestJson);
+    assert.deepEqual(Object.keys(binding).sort(), [...RECEIPT_BINDING_FIELDS].sort());
+    // Every vector's binding is a stored row's: a workspace, and an idempotency key and input hash.
+    assert.ok(Object.values(binding).every((value) => typeof value === "string" && value.length > 0), entry.request_file);
+    assert.equal(committedRequestJson(JSON.stringify(request), committed, binding), requestJson);
+    // The workspace never reaches the bytes; the tenant id in an execute request does not either.
+    assert.ok(!Buffer.from(vector.artifact.payload_bytes_b64, "base64").toString("utf8").includes(binding.companyId));
   }
 });
 
-test("the reserved key: only the mint sets receiptSummary, and no allowlist ever projects it", () => {
+test("the reserved keys: only the mint sets receiptBinding and receiptSummary, and no allowlist ever projects them", () => {
   assert.equal(RECEIPT_SUMMARY_REQUEST_KEY, "receiptSummary");
-  for (const fields of Object.values(PROJECTION_ALLOWLISTS)) {
-    assert.ok(fields.every((field) => field.segments[0].key !== RECEIPT_SUMMARY_REQUEST_KEY));
+  assert.equal(RECEIPT_BINDING_REQUEST_KEY, "receiptBinding");
+  assert.deepEqual([...RECEIPT_BINDING_FIELDS], ["companyId", "idemKey", "inputHash"]);
+  assert.deepEqual([...RESERVED_REQUEST_KEYS].sort(), ["receiptBinding", "receiptSummary"]);
+  for (const [tag, fields] of Object.entries(PROJECTION_ALLOWLISTS)) {
+    for (const key of RESERVED_REQUEST_KEYS) assert.ok(fields.every((field) => field.segments[0].key !== key), `${tag} names ${key}`);
+    const projected = buildPublicProjection(tag, JSON.stringify({ receiptSummary: "private reason", receiptBinding: { companyId: "co_private", idemKey: "idem-private", inputHash: "hash-private" } }));
+    assert.equal(projected, JSON.stringify({ projection: tag }), tag);
   }
-  for (const tag of Object.keys(PROJECTION_ALLOWLISTS)) {
-    assert.ok(!buildPublicProjection(tag, '{"receiptSummary":"private reason"}').includes("private reason"));
+  const binding = { companyId: "co_1", idemKey: null, inputHash: "h" };
+  const code = (fn) => {
+    try {
+      fn();
+      return "ok";
+    } catch (error) {
+      return error.code;
+    }
+  };
+  // The mint refuses a request that already carries either key, and one that is not a JSON object.
+  assert.equal(code(() => committedRequestJson('{"a":1,"receiptSummary":"x"}', "y", binding)), "REQUEST_RESERVED_KEY");
+  assert.equal(code(() => committedRequestJson('{"a":1,"receiptBinding":{}}', "y", binding)), "REQUEST_RESERVED_KEY");
+  for (const text of ["[]", "null", '"x"', "not json", ""]) assert.equal(code(() => committedRequestJson(text, "y", binding)), "REQUEST_NOT_OBJECT", text);
+  // A binding the mint would not write is refused too.
+  for (const bad of [undefined, null, {}, { companyId: "c", idemKey: null }, { ...binding, extra: 1 }, { ...binding, inputHash: 7 }]) {
+    assert.equal(code(() => committedRequestJson('{"a":1}', "y", bad)), "RECEIPT_BINDING_INVALID", JSON.stringify(bad));
   }
-  // The mint refuses a request that already carries the key, and one that is not canonical text.
-  assert.throws(() => committedRequestJson('{"a":1,"receiptSummary":"x"}', "y"), /reserved key/);
-  assert.throws(() => committedRequestJson('{"b":1,"a":2}', "y"), /not canonical/);
-  assert.throws(() => committedRequestJson("[]", "y"), /not a JSON object/);
-  // Present exactly when the summary is a string.
-  assert.equal(committedRequestJson('{"a":1}', "why"), '{"a":1,"receiptSummary":"why"}');
-  assert.equal(committedRequestJson('{"a":1}', ""), '{"a":1,"receiptSummary":""}');
-  assert.equal(committedRequestJson('{"a":1}', null), '{"a":1}');
-  assert.equal(committedRequestJson('{"a":1}', undefined), '{"a":1}');
+  // The mint canonicalizes the request handed to it (it need not be canonical text).
+  assert.equal(committedRequestJson('{"b":1, "a":2}', null, binding), '{"a":2,"b":1,"receiptBinding":{"companyId":"co_1","idemKey":null,"inputHash":"h"}}');
+  // receiptBinding always, with all three keys (null kept, never dropped); receiptSummary exactly when the summary is a string.
+  assert.equal(committedRequestJson('{"a":1}', "why", binding), '{"a":1,"receiptBinding":{"companyId":"co_1","idemKey":null,"inputHash":"h"},"receiptSummary":"why"}');
+  assert.equal(committedRequestJson('{"a":1}', "", binding), '{"a":1,"receiptBinding":{"companyId":"co_1","idemKey":null,"inputHash":"h"},"receiptSummary":""}');
+  assert.equal(committedRequestJson('{"a":1}', null, binding), '{"a":1,"receiptBinding":{"companyId":"co_1","idemKey":null,"inputHash":"h"}}');
+  assert.equal(committedRequestJson('{"a":1}', undefined, binding), '{"a":1,"receiptBinding":{"companyId":"co_1","idemKey":null,"inputHash":"h"}}');
+  // A stored row's binding: its three columns, null when it has none.
+  assert.deepEqual(receiptBindingFor({ companyId: "co_1", idemKey: "k", inputHash: undefined, other: 1 }), { companyId: "co_1", idemKey: "k", inputHash: null });
+});
+
+test("section 6.7 step 3: the committed binding is exactly the mint's shape, and each stated value must be the committed one", () => {
+  const vector = read("test-vectors/v3/approve-human-execute-lane-refund.json");
+  const base = JSON.parse(readText("test-vectors/v3/openings/approve-human-execute-lane-refund.request.json"));
+  const { [RECEIPT_BINDING_REQUEST_KEY]: committedBinding, ...unbound } = base;
+  const salt = Buffer.alloc(32, 7);
+  /** The vector's payload, re-signed over a commitment to `requestValue`, opened with it and `binding` stated. */
+  const open = (requestValue, binding) => {
+    const requestJson = JSON.stringify(sortDeep(requestValue));
+    const payload = { ...decode(vector), requestCommitment: requestCommitment(salt, requestJson) };
+    const result = verifyArtifact(signedEnvelope(payload), keys, { opening: { requestJson, salt, binding } });
+    return result.ok ? `opened:${JSON.stringify(result.committedBinding)}` : `${result.code}:${result.exitCode}`;
+  };
+  assert.equal(open(base, undefined), `opened:${JSON.stringify(committedBinding)}`);
+  assert.equal(open(base, committedBinding), `opened:${JSON.stringify(committedBinding)}`);
+  // Any subset of the three may be stated; each one stated is compared.
+  for (const field of RECEIPT_BINDING_FIELDS) {
+    assert.equal(open(base, { [field]: committedBinding[field] }), `opened:${JSON.stringify(committedBinding)}`, field);
+    assert.equal(open(base, { [field]: `${committedBinding[field]}x` }), "RECEIPT_BINDING_MISMATCH:10", field);
+    assert.equal(open(base, { [field]: null }), "RECEIPT_BINDING_MISMATCH:10", field);
+  }
+  assert.equal(open(base, { tenantId: committedBinding.companyId }), "RECEIPT_BINDING_MISMATCH:10");
+  assert.equal(open(base, [committedBinding.companyId]), "RECEIPT_BINDING_MISMATCH:10");
+  // A null value is committed as null, and only a stated null equals it.
+  const nullIdem = { ...base, [RECEIPT_BINDING_REQUEST_KEY]: { ...committedBinding, idemKey: null } };
+  assert.equal(open(nullIdem, { idemKey: null }), `opened:${JSON.stringify({ ...committedBinding, idemKey: null })}`);
+  assert.equal(open(nullIdem, { idemKey: "" }), "RECEIPT_BINDING_MISMATCH:10");
+  // Missing or malformed: the record cannot be the one the issuer committed, stated values or not.
+  for (const value of [undefined, null, "co_vector_tenant_0001", [], {}, { companyId: "c", idemKey: "k" }, { ...committedBinding, tenantId: "t" }, { ...committedBinding, inputHash: 7 }, { ...committedBinding, companyId: { id: "c" } }]) {
+    const request = value === undefined ? unbound : { ...unbound, [RECEIPT_BINDING_REQUEST_KEY]: value };
+    assert.equal(open(request, undefined), "RECEIPT_BINDING_MISMATCH:10", JSON.stringify(value));
+  }
+  // A committed text that is not a JSON object carries no binding either (and is never a crash).
+  for (const requestJson of ["null", "[]", '"text"', "7", "not json"]) {
+    const payload = { ...decode(vector), requestCommitment: requestCommitment(salt, requestJson) };
+    const result = verifyArtifact(signedEnvelope(payload), keys, { opening: { requestJson, salt } });
+    assert.equal(`${result.code}:${result.exitCode}`, "RECEIPT_BINDING_MISMATCH:10", requestJson);
+  }
+  // The binding is checked after the summary and before the projection rebuild.
+  assert.equal(open({ ...unbound, [RECEIPT_SUMMARY_REQUEST_KEY]: 7 }, undefined), "COMMITTED_SUMMARY_MISMATCH:10");
+  assert.equal(open({ ...base, action: { ...base.action, tool: "github" } }, undefined), "PUBLIC_PROJECTION_MISMATCH:10");
+  assert.equal(open({ ...unbound, action: { ...base.action, tool: "github" } }, undefined), "RECEIPT_BINDING_MISMATCH:10");
 });
 
 test("section 6.7 step 3: the committed summary must be text, and must be the stated one", () => {
@@ -458,12 +556,81 @@ test("an unknown canonicalization fails closed as unsupported, never as tampered
   assert.equal(verifyArtifact(signedEnvelope(unlabelled), keys).code, "MALFORMED");
 });
 
-test("an unknown projection tag fails closed as unsupported, even with a valid signature", () => {
+test("an unknown projection tag fails closed as unsupported, even with a valid signature; a projection that names no tag is malformed", () => {
   const payload = decode(read("test-vectors/v3/approve-human-execute-lane-refund.json"));
-  for (const projection of ['{"projection":"execute/v2"}', '{"intent":{"name":"x"}}', "not json", '["execute/v1"]']) {
+  for (const projection of ['{"projection":"execute/v2"}', '{"projection":"deploy_gate/v9"}', '{"projection":""}']) {
     const result = verifyArtifact(signedEnvelope({ ...payload, publicProjectionJson: projection }), keys);
     assert.equal(result.code, "PROJECTION_UNSUPPORTED", projection);
     assert.equal(result.exitCode, 8);
+  }
+  // No build rule, under any tag, produces these: a malformed receipt, not a newer one.
+  for (const projection of ['{"intent":{"name":"x"}}', '{"projection":7}', "not json", '["execute/v1"]', '"execute/v1"', "null", undefined]) {
+    const signed = { ...payload, publicProjectionJson: projection };
+    if (projection === undefined) delete signed.publicProjectionJson;
+    const result = verifyArtifact(signedEnvelope(signed), keys);
+    assert.equal(result.code, "MALFORMED", String(projection));
+    assert.equal(result.exitCode, 3);
+  }
+  // A jcs_v3 payload is receipt version 3.
+  for (const receiptVersion of [2, 4, "3", undefined]) {
+    const signed = { ...payload, receiptVersion };
+    if (receiptVersion === undefined) delete signed.receiptVersion;
+    const result = verifyArtifact(signedEnvelope(signed), keys);
+    assert.equal(result.code, "MALFORMED", String(receiptVersion));
+    assert.equal(result.exitCode, 3);
+  }
+});
+
+test("a signed requestCommitment nobody can open is unavailable (8), for every verifier", () => {
+  const payload = decode(read("test-vectors/v3/approve-human-execute-lane-refund.json"));
+  for (const requestCommitment of [undefined, "sha256:XYZ", `sha256:${"A".repeat(64)}`, "7cf143f6cad103ccdc2cf1d026420650de227501d16883f896eac5c23caec0c1"]) {
+    const signed = { ...payload, requestCommitment };
+    if (requestCommitment === undefined) delete signed.requestCommitment;
+    const result = verifyArtifact(signedEnvelope(signed), keys);
+    assert.equal(result.code, "REQUEST_COMMITMENT_UNAVAILABLE", String(requestCommitment));
+    assert.equal(result.exitCode, 8);
+  }
+  assert.equal(EXIT_CODES.REQUEST_COMMITMENT_UNAVAILABLE, 8);
+});
+
+test("the key and the signature are checked before the canonicalization: only a verified signature over an unknown one is unsupported", () => {
+  const payload = decode(read("test-vectors/v3/approve-human-deploy-gate-private-repo.json"));
+  const forged = (fields, keyId = payload.signatureKeyId) => {
+    const envelope = signedEnvelope({ ...payload, ...fields, signatureKeyId: keyId });
+    envelope.artifact.signature_b64 = Buffer.alloc(64, 1).toString("base64");
+    return envelope;
+  };
+  // A rewritten payload with a recomputed hash and a garbage signature is a bad signature, not "unsupported".
+  assert.equal(verifyArtifact(forged({ canonicalization: "jcs_v4" }), keys).code, "SIGNATURE_INVALID");
+  assert.equal(verifyArtifact(forged({ canonicalization: "jcs_v4" }), keys).exitCode, 1);
+  // Under a key nobody publishes, it is a missing key.
+  assert.equal(verifyArtifact(forged({ canonicalization: "jcs_v4" }, "pp-nobody"), keys).code, "KEY_NOT_FOUND");
+  // Signed for real: unsupported, unverifiable here, not tampered.
+  const genuine = verifyArtifact(signedEnvelope({ ...payload, canonicalization: "jcs_v4" }), keys);
+  assert.equal(genuine.code, "CANONICALIZATION_UNSUPPORTED");
+  assert.equal(genuine.exitCode, 8);
+});
+
+test("a JSON key named __proto__ is an ordinary key: it stays in the canonical form, and a decider proof that carries one is invalid", () => {
+  const payload = decode(read("test-vectors/v3/approve-human-deploy-gate-private-repo.json"));
+  // Built from text so "__proto__" is an own key, as JSON.parse makes it.
+  for (const inner of ['{"counter":17}', '"x"', "null"]) {
+    const text = JSON.stringify(sortDeep(payload)).replace('"deciderProof":{', `"deciderProof":{"__proto__":${inner},`);
+    const signed = JSON.parse(text);
+    assert.ok(Object.prototype.hasOwnProperty.call(signed.deciderProof, "__proto__"));
+    assert.equal(canonicalize(signed, "jcs_v3"), text, "the canonical form keeps the key");
+    const bytes = Buffer.from(text, "utf8");
+    const digest = signingDigest(bytes);
+    const envelope = {
+      artifact: {
+        receipt_id: payload.id, key_id: payload.signatureKeyId, alg: "ed25519", signed_payload_hash: digest.toString("hex"),
+        signature_b64: sign(null, digest, testKey).toString("base64"), payload_bytes_b64: bytes.toString("base64"),
+      },
+    };
+    const result = verifyArtifact(envelope, keys);
+    assert.equal(result.code, "DECIDER_PROOF_INVALID", inner);
+    assert.equal(result.exitCode, 9);
+    assert.equal(checkDeciderProof(signed.deciderAuthMethod, signed.deciderProof).code, "DECIDER_PROOF_INVALID");
   }
 });
 
@@ -575,11 +742,18 @@ test("SPEC.md section 3.4 lists exactly the jcs_v3 signed fields, and section 3.
   assert.equal(tables.length, 4);
 });
 
-test("the issuer's own golden jcs_v3 vectors reproduce byte for byte: committed request, commitment, proofs, digests and signatures", () => {
-  // From permission-protocol/app tests/signing/receipt-canonicalization-golden.test.ts
-  // at 6e611d95 (the issuer's final v3 signer, PR #614 with #612): fixed
-  // fields, the fixed salt 0..31, fixed step-up evidence and the golden key
-  // (32 bytes of 0x09) give these literals, once per decider kind.
+test("the issuer's golden jcs_v3 inputs, with the committed binding: committed request, commitment, proofs, digests and signatures", () => {
+  // The inputs of permission-protocol/app tests/signing/receipt-canonicalization-golden.test.ts
+  // (fixed fields, the fixed salt 0..31, fixed step-up evidence and the golden
+  // key, 32 bytes of 0x09), once per decider kind. Before receiptBinding, the
+  // issuer's signer at 6e611d95 gave commitment
+  // sha256:8177915c995f5702e172d3ae27510f128aaa6e1f79c4c39e6188ff8bfa69eb85 and
+  // digests 28d71600…, 326c2927… and e6ad3101…, which this repository's tools
+  // reproduced byte for byte. The literals below add the row's binding under
+  // receiptBinding (SPEC.md section 3.5) and are computed by this repository's
+  // tools. CROSS-CHECK PENDING: the issuer's golden test must give the same
+  // committed request, commitment, digests and signatures once its mint
+  // commits receiptBinding (SPEC.md section 12).
   const request = JSON.stringify({
     action: { operation: "deploy", tool: "github-actions" },
     context: { environment: "production", reversibility: "REVERSIBLE" },
@@ -598,16 +772,21 @@ test("the issuer's own golden jcs_v3 vectors reproduce byte for byte: committed 
     scope: { artifact_digest: null, capability: "deploy:production", commitSha: "9f2c000000000000000000000000000000000001", env: "production", ref: "refs/heads/main", repo: "acme/private-app", visibility: "private", workflow: null },
   });
   const summary = 'Ship it: "quoted" ünïcode — done';
+  const binding = { companyId: "co_golden", idemKey: "deploy-gate:dgr_golden:5d41402abc4b2a76b9719d911017c592", inputHash: "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae" };
   const salt = Buffer.from(Array.from({ length: 32 }, (_, index) => index));
-  const committed = committedRequestJson(request, summary);
-  assert.deepEqual(JSON.parse(committed), { ...JSON.parse(request), receiptSummary: summary });
+  const committed = committedRequestJson(request, summary, binding);
+  assert.deepEqual(JSON.parse(committed), { ...JSON.parse(request), receiptBinding: binding, receiptSummary: summary });
+  assert.equal(
+    committed,
+    '{"action":{"operation":"deploy","tool":"github-actions"},"context":{"environment":"production","reversibility":"REVERSIBLE"},"enrichmentSnapshot":{"summary":"PRIVATE-ENRICHMENT"},"intent":{"category":"deployment","name":"deploy_gate_approval","summary":"Deploy gate authorization approved"},"metadata":{"deployGateRequestId":"dgr_golden"},"policy":{"decision":{"matchedInputs":{"analysisComplete":true,"changeClass":"protected","changedPaths":["src/private/path.ts"],"defaultBranch":"main","repoPolicy":{"rationale":"PRIVATE-RATIONALE"},"targetBranch":"main"},"outcome":"approval_required","ruleId":"hold.protected_path","ruleVersion":"outcome-router-v1"},"expiresAt":"2026-10-05T12:00:00.000Z"},"receiptBinding":{"companyId":"co_golden","idemKey":"deploy-gate:dgr_golden:5d41402abc4b2a76b9719d911017c592","inputHash":"2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},"receiptSummary":"Ship it: \\"quoted\\" ünïcode — done","scope":{"artifact_digest":null,"capability":"deploy:production","commitSha":"9f2c000000000000000000000000000000000001","env":"production","ref":"refs/heads/main","repo":"acme/private-app","visibility":"private","workflow":null}}'
+  );
   const projection = buildPublicProjection("deploy_gate/v1", committed);
   assert.equal(
     projection,
     '{"action":{"operation":"deploy","tool":"github-actions"},"context":{"environment":"production","reversibility":"REVERSIBLE"},"intent":{"category":"deployment","name":"deploy_gate_approval"},"metadata":{"deployGateRequestId":"dgr_golden"},"policy":{"decision":{"matchedInputs":{"analysisComplete":true,"changeClass":"protected"},"outcome":"approval_required","ruleId":"hold.protected_path","ruleVersion":"outcome-router-v1"},"expiresAt":"2026-10-05T12:00:00.000Z"},"projection":"deploy_gate/v1","scope":{"capability":"deploy:production","commitSha":"9f2c000000000000000000000000000000000001","env":"production","visibility":"private"}}'
   );
   const commitment = requestCommitment(salt, committed);
-  assert.equal(commitment, "sha256:8177915c995f5702e172d3ae27510f128aaa6e1f79c4c39e6188ff8bfa69eb85");
+  assert.equal(commitment, "sha256:a57c62d3a69c2ea9142b14395ddb2d22750f1a349df738535bd434cb3b27ec11");
 
   const webauthnEvidence = {
     method: "webauthn", credentialIdHash: "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069", challengeHash: "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
@@ -618,15 +797,15 @@ test("the issuer's own golden jcs_v3 vectors reproduce byte for byte: committed 
   const goldenKey = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 9)]), format: "der", type: "pkcs8" });
   const goldenKeys = { keys: [{ key_id: "pp_golden_k1", alg: "ed25519", public_key_b64: "/RckOFqgx1tk+3jNYC+h2ZH96/drE8WO1wLqyDXp9hg=", status: "active" }] };
   const cases = [
-    { method: "session", evidence: null, proof: null, sha256: "28d716009ba504fed686be0c27c1b68d814a3879e608304d80ae07fa05656f44", signature: "Q8desbSMCwMS/AUHqj55LOHRQqOMcxBxFeCJdo9UNtVaVOouPLW8MgiJlh4UdDwYygp+pXEReVuQWTVNdN21BA==" },
+    { method: "session", evidence: null, proof: null, sha256: "40989bb09d8bbc94e8bba92bc89d8fedc2f98376ba293ab904bb7db4613b3c60", signature: "Y+kVWVXIAIHCQvRAKCXoz+LULqIGd9zFQ6blKQVzNt/czU4KWLDj9rW0Zpg3OjMiin04x6+J+s/VvGQPyXIAAw==" },
     {
       method: "session_stepup_webauthn", evidence: webauthnEvidence,
       proof: '{"authenticatorDataHash":"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2","challengeHash":"a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e","credentialIdHash":"7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069","method":"webauthn","origin":"https://app.permissionprotocol.com","reviewGeneration":2,"rpId":"app.permissionprotocol.com","userVerified":true,"verifiedAt":"2026-10-05T10:59:30.000Z"}',
-      sha256: "326c2927b22117685e40a1db8cf773cc2ebd16cf7f76b8b9721c1eed28a9deee", signature: "XBXJ9cH3pA3BQm/ikoIXV3FSquZS0L/bJHIJztqLPqCZ9RzzKmzQtL/AF8TCPS3aOsDMjvH37vTteB54JxMsCQ==",
+      sha256: "ff36bda276857ec8ad6612d03941336922eb4f3bdc764429c4f6948243f76574", signature: "ov9JG7flwhSWgQ8vhpvaybXoyO89gDu2msA2F3rW/sBZyExCSYec8r8NVEO0BMu6+9R2Cr5WiN11ZFalsbNnCQ==",
     },
     {
       method: "session_reauth", evidence: reauthEvidence, proof: '{"authTime":"2026-10-05T10:57:00.000Z","maxAgeMs":300000,"method":"reauth","verifiedAt":"2026-10-05T10:59:30.000Z"}',
-      sha256: "e6ad3101af38d5af61eab25d5c2804aa59787e60da0e767509a9d561798b29da", signature: "YpEE5QfbZrMHlevauNLCZKBJ0HPWp20xSLTH5DJUS528NgufdbCCC2B1QTnUPfFV6jKLDpc5Z/WofpqD25VLCw==",
+      sha256: "c6c720462d58fd0e84d5c6ada77c56ba60aa9eaaa8bea73cff18398fe9ee0a61", signature: "/I+rRKYfowt4xDZwi2WZ7Y0p1VV6bv11xTdIbrEODGwOX7VbbNIbV3KpwnHLQcnbAGnS/ZFadODAZFZqhIqpBw==",
     },
   ];
   for (const golden of cases) {
@@ -642,14 +821,16 @@ test("the issuer's own golden jcs_v3 vectors reproduce byte for byte: committed 
     };
     const text = canonicalize(row, "jcs_v3");
     assert.ok(!text.includes("quoted") && !text.includes("receiptSummary"), "the summary is not signed");
+    assert.ok(!text.includes("receiptBinding") && !text.includes("co_golden") && !text.includes(binding.idemKey) && !text.includes(binding.inputHash), "the binding is not signed");
     const digest = createHash("sha256").update(text, "utf8").digest();
     assert.equal(digest.toString("hex"), golden.sha256, golden.method);
     assert.equal(sign(null, digest, goldenKey).toString("base64"), golden.signature, golden.method);
     // The reference verifier accepts it and opens it with the summary the issuer stored.
     const envelope = signedEnvelope(JSON.parse(text), goldenKey);
     assert.equal(envelope.artifact.signed_payload_hash, golden.sha256);
-    const result = verifyArtifact(envelope, goldenKeys, { opening: { requestJson: committed, salt, summary } });
+    const result = verifyArtifact(envelope, goldenKeys, { opening: { requestJson: committed, salt, summary, binding } });
     assert.equal(result.ok, true, result.message);
     assert.equal(result.committedSummary, summary);
+    assert.deepEqual(result.committedBinding, binding);
   }
 });

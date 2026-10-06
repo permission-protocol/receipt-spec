@@ -165,7 +165,11 @@ function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (!isPlainObject(value)) return value;
   const sorted = {};
-  for (const key of Object.keys(value).sort()) sorted[key] = sortKeys(value[key]);
+  // defineProperty, not assignment: a JSON key named "__proto__" stays an own
+  // key of the copy (assignment would set the prototype and drop the key).
+  for (const key of Object.keys(value).sort()) {
+    Object.defineProperty(sorted, key, { value: sortKeys(value[key]), enumerable: true, writable: true, configurable: true });
+  }
   return sorted;
 }
 

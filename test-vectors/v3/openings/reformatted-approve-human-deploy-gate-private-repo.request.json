@@ -81,6 +81,11 @@
     },
     "expiresAt": "2026-10-06T09:15:00.000Z"
   },
+  "receiptBinding": {
+    "companyId": "co_vector_tenant_0001",
+    "idemKey": "deploy-gate:vec07v3privaterepo000001:a91f38cf8a848545996428b86c3af285428bf34ecd71d21bfdba30bbdd5a79e0",
+    "inputHash": "a91f38cf8a848545996428b86c3af285428bf34ecd71d21bfdba30bbdd5a79e0"
+  },
   "receiptSummary": "Deploy gate authorization approved",
   "scope": {
     "artifact_digest": null,

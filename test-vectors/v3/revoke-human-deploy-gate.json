@@ -1,5 +1,5 @@
 {
-  "description": "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and copies the revoked request's scope under the same visibility rule. The reason is free text: it is the summary, committed under receiptSummary, and is neither signed nor projected.",
+  "description": "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and carries the revoked request's scope without repository identity: a revocation records scope.visibility only from a fresh read of the repository, and none was made, so it is treated as private. deciderDisplay is the revoker's internal user id, as the revoke route signs it. The reason is free text: it is the summary, committed under receiptSummary, and is neither signed nor projected.",
   "generated_by": "node tools/generate-vectors.mjs",
   "mirrors": "app src/app/api/v1/receipts/[receiptId]/revoke/route.ts with PP_RECEIPT_V3=on",
   "artifact": {
@@ -9,28 +9,28 @@
     "canonicalization": "jcs_v3",
     "key_id": "pp-test-2026-q2",
     "alg": "ed25519",
-    "signed_payload_hash": "c1d8141c0acf095588303b7586494c561580a9e4f20671eab3f2bccea6890a94",
-    "signature_b64": "6/vbAYrW0aar4VL6xwVvqYx6HA/ZBbBfKq0fx4XCznfeJWscmGDbVGuKU9QBCjn7C5hxkAblEG8fFdyt0IL+Bw==",
-    "payload_bytes_b64": "eyJhZ2VudElkIjoicGVybWlzc2lvbi1wcm90b2NvbCIsImF0dHJpYnV0aW9uQ29uZmlkZW5jZSI6ImNyZWRlbnRpYWxlZCIsImNhbm9uaWNhbGl6YXRpb24iOiJqY3NfdjMiLCJjcmVhdGVkQXQiOiIyMDI2LTEwLTA2VDA5OjA1OjAwLjAwMFoiLCJkZWNpZGVyQXV0aE1ldGhvZCI6InNlc3Npb24iLCJkZWNpZGVyRGlzcGxheSI6ImFsaWNlLWV4YW1wbGUiLCJkZWNpZGVySWQiOiJ1c2VyOnVzcl92ZWNfYWxpY2VfMDAwMDAwMDEiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTA2VDEwOjA1OjAwLjAwMFoiLCJpZCI6InJjcHRfcmV2XzZmMWMyZTlhLTNiN2QtNGM1ZS04YTFmLTBkMmI0YzZlOGYwYSIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiaW50ZW50XCI6e1wibmFtZVwiOlwiYXV0aG9yaXphdGlvbl9yZXZvY2F0aW9uXCJ9LFwibWV0YWRhdGFcIjp7XCJkZXBsb3lHYXRlUmVxdWVzdElkXCI6XCJ2ZWMwN3YzcHJpdmF0ZXJlcG8wMDAwMDFcIixcInJldm9rZWRSZWNlaXB0SWRcIjpcInJjcHRfZGdfdmVjMDd2M3ByaXZhdGVyZXBvMDAwMDAxXCJ9LFwicHJvamVjdGlvblwiOlwicmV2b2NhdGlvbi92MVwiLFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCIzYzllMWYwYTdiMmQ0YzZlOGYwYTFiM2M1ZDdlOWYxYTJiNGM2ZDhlXCIsXCJlbnZcIjpcInByb2R1Y3Rpb25cIixcInZpc2liaWxpdHlcIjpcInByaXZhdGVcIn19IiwicmVjZWlwdFZlcnNpb24iOjMsInJlcXVlc3RDb21taXRtZW50Ijoic2hhMjU2OmExNjJmYmMzOGRlOTFiYWVhY2QxYmQxODk3MDJhMjczYTRhNjZhYjQxMmJmMjdkZDY2MWFmNTNhNWVmOGUyMDkiLCJyZXNvbHV0aW9uVHlwZSI6ImRlbnkiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJwcC10ZXN0LTIwMjYtcTIiLCJzdGF0dXMiOiJERU5JRUQifQ==",
+    "signed_payload_hash": "90421a21c375ebc2df5515072599a4f8c74726094d7c58737d55b47af7d3755e",
+    "signature_b64": "0BZX/wrLwBpYvVinhJ4AL4fEAKVJMSZHH6EGyKXMbYgU1feRYM0CE5MsVh+HPD9DyBFp4bhRsTDJScMNKaYVDQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoicGVybWlzc2lvbi1wcm90b2NvbCIsImF0dHJpYnV0aW9uQ29uZmlkZW5jZSI6ImNyZWRlbnRpYWxlZCIsImNhbm9uaWNhbGl6YXRpb24iOiJqY3NfdjMiLCJjcmVhdGVkQXQiOiIyMDI2LTEwLTA2VDA5OjA1OjAwLjAwMFoiLCJkZWNpZGVyQXV0aE1ldGhvZCI6InNlc3Npb24iLCJkZWNpZGVyRGlzcGxheSI6InVzcl92ZWNfYWxpY2VfMDAwMDAwMDEiLCJkZWNpZGVySWQiOiJ1c2VyOnVzcl92ZWNfYWxpY2VfMDAwMDAwMDEiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTA2VDEwOjA1OjAwLjAwMFoiLCJpZCI6InJjcHRfcmV2XzZmMWMyZTlhLTNiN2QtNGM1ZS04YTFmLTBkMmI0YzZlOGYwYSIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiaW50ZW50XCI6e1wibmFtZVwiOlwiYXV0aG9yaXphdGlvbl9yZXZvY2F0aW9uXCJ9LFwibWV0YWRhdGFcIjp7XCJkZXBsb3lHYXRlUmVxdWVzdElkXCI6XCJ2ZWMwN3YzcHJpdmF0ZXJlcG8wMDAwMDFcIixcInJldm9rZWRSZWNlaXB0SWRcIjpcInJjcHRfZGdfdmVjMDd2M3ByaXZhdGVyZXBvMDAwMDAxXCJ9LFwicHJvamVjdGlvblwiOlwicmV2b2NhdGlvbi92MVwiLFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCIzYzllMWYwYTdiMmQ0YzZlOGYwYTFiM2M1ZDdlOWYxYTJiNGM2ZDhlXCIsXCJlbnZcIjpcInByb2R1Y3Rpb25cIn19IiwicmVjZWlwdFZlcnNpb24iOjMsInJlcXVlc3RDb21taXRtZW50Ijoic2hhMjU2OmE1YzY5ZTAxYmVlYmJlMjkxMTFlY2IzMTFhZjJiNzhlYzhkNTk0YjIxMDI4MjNjMzk3ZTAzNjk0ZDU3Y2U5Y2YiLCJyZXNvbHV0aW9uVHlwZSI6ImRlbnkiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJwcC10ZXN0LTIwMjYtcTIiLCJzdGF0dXMiOiJERU5JRUQifQ==",
     "issued_at": "2026-10-06T09:05:00.000Z",
     "expires_at": "2026-10-06T10:05:00.000Z",
     "redeemed_at": null
   },
   "keys_url": "test-vectors/keys.json",
-  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, and checks the stated summary against the committed receiptSummary.",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
   "receipt": {
     "agentId": "permission-protocol",
     "attributionConfidence": "credentialed",
     "canonicalization": "jcs_v3",
     "createdAt": "2026-10-06T09:05:00.000Z",
     "deciderAuthMethod": "session",
-    "deciderDisplay": "alice-example",
+    "deciderDisplay": "usr_vec_alice_00000001",
     "deciderId": "user:usr_vec_alice_00000001",
     "expiresAt": "2026-10-06T10:05:00.000Z",
     "id": "rcpt_rev_6f1c2e9a-3b7d-4c5e-8a1f-0d2b4c6e8f0a",
-    "publicProjectionJson": "{\"intent\":{\"name\":\"authorization_revocation\"},\"metadata\":{\"deployGateRequestId\":\"vec07v3privaterepo000001\",\"revokedReceiptId\":\"rcpt_dg_vec07v3privaterepo000001\"},\"projection\":\"revocation/v1\",\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"3c9e1f0a7b2d4c6e8f0a1b3c5d7e9f1a2b4c6d8e\",\"env\":\"production\",\"visibility\":\"private\"}}",
+    "publicProjectionJson": "{\"intent\":{\"name\":\"authorization_revocation\"},\"metadata\":{\"deployGateRequestId\":\"vec07v3privaterepo000001\",\"revokedReceiptId\":\"rcpt_dg_vec07v3privaterepo000001\"},\"projection\":\"revocation/v1\",\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"3c9e1f0a7b2d4c6e8f0a1b3c5d7e9f1a2b4c6d8e\",\"env\":\"production\"}}",
     "receiptVersion": 3,
-    "requestCommitment": "sha256:a162fbc38de91baeacd1bd189702a273a4a66ab412bf27dd661af53a5ef8e209",
+    "requestCommitment": "sha256:a5c69e01beebbe29111ecb311af2b78ec8d594b2102823c397e03694d57ce9cf",
     "resolutionType": "deny",
     "scope": "production",
     "signatureAlg": "ed25519",
@@ -50,8 +50,7 @@
     "scope": {
       "capability": "deploy:production",
       "commitSha": "3c9e1f0a7b2d4c6e8f0a1b3c5d7e9f1a2b4c6d8e",
-      "env": "production",
-      "visibility": "private"
+      "env": "production"
     }
   }
 }

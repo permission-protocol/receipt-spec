@@ -37,11 +37,11 @@ A signed field is never removed from a canonicalization version, because removin
 2. `SPEC.md` marks the field as present in older versions only, with the date the last receipts carrying it were minted.
 3. Verifiers keep the old field rules for the old version. Nothing is re-signed, backdated, or migrated.
 
-`jcs_v3` is the first deprecation: it omits `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary` from its signed set, binds the request through `requestCommitment` and `publicProjectionJson` instead, and binds the summary inside the committed request (`receiptSummary`). It also adds one signed field, `deciderProof`. Because it removes signed fields, it also moves `receiptVersion` to `3`. Receipts carrying the old fields stay valid.
+`jcs_v3` is the first deprecation: it omits `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary` from its signed set, binds the request through `requestCommitment` and `publicProjectionJson` instead, and binds the summary (`receiptSummary`) and the receipt's `companyId`, `idemKey` and `inputHash` (`receiptBinding`) inside the committed request. It also adds one signed field, `deciderProof`. Because it removes signed fields, it also moves `receiptVersion` to `3`. Receipts carrying the old fields stay valid.
 
 ## Projection tags
 
-A `jcs_v3` receipt's `publicProjectionJson` names the allowlist it was built under: `deploy_gate/v1`, `execute/v1` or `revocation/v1` (`SPEC.md` section 3.7). A tag is frozen the moment a receipt is signed with it, under the same rule as a canonicalization version.
+A `jcs_v3` receipt's `publicProjectionJson` names the allowlist it was built under: `deploy_gate/v1`, `execute/v1` or `revocation/v1` (`SPEC.md` section 3.7). A tag is frozen the moment a receipt is signed with it, under the same rule as a canonicalization version. `deploy_gate/v1` was edited once before any receipt was signed with it: on 2026-10-06 its two `recordedDecisions[].authMethod` paths were removed (`SPEC.md` section 3.7). From its first signed receipt on, it is frozen.
 
 - A new lane, or any change to an allowlist (a path added, removed, or given a different slot or visibility rule), gets a new tag such as `deploy_gate/v2`. A shipped tag is never edited.
 - A new tag does not need a new canonicalization version, because the signed field set and the byte rules stay the same. It does need a `SPEC.md` table and a version-history entry here before any receipt carries it.
@@ -80,12 +80,13 @@ Any of the following is a breaking change and gets a new `receiptVersion` and a 
 | 2026-09-08 | `SPEC.md` documents the format as emitted, including the digest signature input and the string types the hosted service uses; `prev` reserved for `jcs_v3` | no version change (documentation) |
 | 2026-10-03 | Step-up signing values `session_stepup_webauthn` and `session_reauth` for `deciderAuthMethod`, observed on production receipts by this date; documented here | no version change (values only) |
 | 2026-10 | Execution attestations: the execute lane signs the authorization before the action and records the outcome as a separate signed attestation (ADR 0003); execute-lane human approvals signed at the decision are `credentialed` | `attestationVersion` `1`, `attest_v1` (attestations); receipts unchanged |
-| 2026-10-06 | Receipt format v3 specified: the signed bytes carry a salted `requestCommitment` and an allowlisted `publicProjectionJson` instead of `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary`; the summary is committed inside the request under the reserved key `receiptSummary`; a decider who stepped up signs `deciderProof` (a `webauthn` or `reauth` shape, consistent with `deciderAuthMethod`). Specified before issuance; the hosted service has not issued one yet, and the date it first does will be added here. No chain field; `prev` moves to `jcs_v4` | `receiptVersion` `3`, `jcs_v3`; projection tags `deploy_gate/v1`, `execute/v1`, `revocation/v1` |
+| 2026-10-06 | Receipt format v3 specified: the signed bytes carry a salted `requestCommitment` and an allowlisted `publicProjectionJson` instead of `companyId`, `idemKey`, `requestJson`, `inputHash` and `summary`; the summary is committed inside the request under the reserved key `receiptSummary`, and `companyId`, `idemKey` and `inputHash` under the reserved key `receiptBinding`; a decider who stepped up signs `deciderProof` (a `webauthn` or `reauth` shape, consistent with `deciderAuthMethod`). Specified before issuance; the hosted service has not issued one yet, and the date it first does will be added here. No chain field; `prev` moves to `jcs_v4` | `receiptVersion` `3`, `jcs_v3`; projection tags `deploy_gate/v1`, `execute/v1`, `revocation/v1` |
 
 ## Reserved names
 
 - `prev` is reserved for `jcs_v4`. `jcs_v3` carries the receipt-privacy change and the signed decider proof, and no chain field. See `SPEC.md`, "Chaining".
 - `receiptSummary` is a reserved top-level key of a `jcs_v3` committed request: only the issuer's mint sets it, to the receipt's summary (`SPEC.md` section 3.5). A request that already carries it is refused, and no projection tag, present or future, may name it.
+- `receiptBinding` is a reserved top-level key of a `jcs_v3` committed request: only the issuer's mint sets it, on every `jcs_v3` receipt, to `{ companyId, idemKey, inputHash }`, each a string or `null` (`SPEC.md` section 3.5). A request that already carries it is refused, and no projection tag, present or future, may name it. Its shape is part of `jcs_v3` and frozen with it: a key added, removed or retyped is a new canonicalization version.
 
 ## The decider proof shapes
 

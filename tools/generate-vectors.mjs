@@ -34,10 +34,12 @@
 // test-vectors/v3/: a v3 receipt signs a salted commitment to its private
 // request, a public projection of it and, for a decider who stepped up, a
 // decider proof, instead of companyId, idemKey, requestJson, inputHash and
-// summary. Each request is built the way the issuer's mint path builds it, as
-// canonical text; the mint adds the summary under receiptSummary and commits
-// the result with a fixed test salt (SHA-256 of "receipt-spec jcs_v3 test
-// salt: <vector name>"; the issuer draws 32 random bytes per receipt). The
+// summary. Each request is built the way the issuer's mint path builds it; the
+// mint adds the receipt's binding under receiptBinding (its companyId, idemKey
+// and inputHash, each a string or null) and the summary under receiptSummary,
+// canonicalizes the result and commits it with a fixed test salt (SHA-256 of
+// "receipt-spec jcs_v3 test salt: <vector name>"; the issuer draws 32 random
+// bytes per receipt). The
 // decider proof is built from the stored step-up evidence by the issuer's rule
 // (tools/decider-proof.mjs). The commitment, the projection, the proof, the
 // bytes and the signature are all computed here from those inputs:
@@ -52,7 +54,9 @@
 //      a plain session (no proof); the projection carries the intent and action
 //      names, never the parameters.
 //   v3/revoke-human-deploy-gate: the private-repository approval revoked; the
-//      revocation lane, DENIED, the reason committed as the summary.
+//      revocation lane, DENIED, the reason committed as the summary. The
+//      revocation records no visibility (none was read afresh), so its
+//      projection carries no repository identity.
 //   v3/tampered-approve-human-deploy-gate-private-repo: the projection's commit
 //      SHA edited after signing, hash recomputed: fails at the signature.
 //   v3/outside-allowlist-approve-human-execute-lane-refund: validly signed with
@@ -65,21 +69,35 @@
 //      over a webauthn decider proof that also carries the authenticator's
 //      signature counter, a key outside the proof's frozen shape
 //      (DECIDER_PROOF_INVALID).
+//   v3/no-binding-approve-human-execute-lane-refund: validly signed over a
+//      commitment to a request that carries the summary but no receiptBinding,
+//      as no issuer's mint writes it. A third party cannot tell (it verifies);
+//      the opening fails (RECEIPT_BINDING_MISMATCH).
 //   v3/openings/: the private side, which only test vectors publish: each
 //      committed request as its exact text, and openings.json, the commitment
-//      openings with their salts, the summary stated beside each, and the
-//      expected results.
+//      openings with their salts, the summary and binding values stated beside
+//      each, and the expected results.
 //
 //   node tools/generate-vectors.mjs --inputs <file>
 // also writes the mint inputs of every v3 vector an issuer can produce (the
-// request before the mint, the summary, the stored step-up evidence, the salt,
-// the decider and the signed fields), so the issuer's own signer can sign the
+// request before the mint, the summary, the binding, the stored step-up
+// evidence, the salt, the decider and the signed fields), so the issuer's own
+// signer can sign the
 // same inputs with the test key and be compared byte for byte (SPEC.md
 // section 12).
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { attestationBytes, canonicalBytes, committedRequestJson, outputHash, requestCommitment, signingDigest } from "./canonicalize.mjs";
+import {
+  RECEIPT_SUMMARY_REQUEST_KEY,
+  attestationBytes,
+  canonicalBytes,
+  committedRequestJson,
+  outputHash,
+  receiptBindingFor,
+  requestCommitment,
+  signingDigest,
+} from "./canonicalize.mjs";
 import { deciderProofForSigning } from "./decider-proof.mjs";
 import { PROJECTION_TAG_BY_LANE, buildPublicProjection } from "./public-projection.mjs";
 
@@ -812,16 +830,18 @@ const v3ApproveRefund = {
 };
 
 // v3/revoke-human-deploy-gate: revokes v3/approve-human-deploy-gate-private-repo
-// (app revoke route): the scope is copied from the revoked receipt's request,
-// visibility included. The reason is the summary, committed under
+// (app revoke route): the scope is copied from the revoked receipt's request
+// without its visibility. A revocation records scope.visibility only from a
+// fresh read of the repository, and the route makes none, so its projection
+// carries no repository identity. The reason is the summary, committed under
 // receiptSummary and also kept in metadata.reason; neither is projected.
-// deciderDisplay is the revoker's GitHub handle, as the route signs it from
-// app commit 6e611d95 on (earlier builds signed the internal user id).
+// deciderDisplay is the revoker's internal user id, as the route signs it.
 const v3RevokeReason = "Migration window moved to Thursday; withdrawn until then";
+const { visibility: _revokedVisibility, ...v3RevokeScope } = JSON.parse(v3PrivateRequestJson).scope;
 const v3RevokeRequestJson = canonicalJson({
   intent: { name: "authorization_revocation", summary: "Authorization withdrawn" },
   metadata: { revokedReceiptId: v3ApprovePrivate.id, deployGateRequestId: v3PrivateRequestId, reason: v3RevokeReason },
-  scope: JSON.parse(v3PrivateRequestJson).scope,
+  scope: v3RevokeScope,
 });
 const v3Revoke = {
   ...V3_BASE,
@@ -839,7 +859,7 @@ const v3Revoke = {
   reasonCodes: null,
   summary: v3RevokeReason,
   deciderId: "user:usr_vec_alice_00000001",
-  deciderDisplay: "alice-example",
+  deciderDisplay: "usr_vec_alice_00000001",
   deciderAuthMethod: "session",
   resolutionType: "deny",
   attributionConfidence: "credentialed",
@@ -850,21 +870,24 @@ const v3Revoke = {
 
 /**
  * Mint a v3 row as the issuer's signer does (app signing/receipt-v3.ts and
- * decider-proof.ts): add the summary to the request under receiptSummary,
- * commit to that text with the vector's salt, project it under the lane's tag,
- * and build the decider proof from the stored step-up evidence. The bound row
- * stores the committed text as requestJson. `override` replaces the projection
- * or the proof, for the deliberately defective vectors only.
+ * decider-proof.ts): add the row's binding to the request under
+ * receiptBinding and the summary under receiptSummary, commit to that text
+ * with the vector's salt, project it under the lane's tag, and build the
+ * decider proof from the stored step-up evidence. The bound row stores the
+ * committed text as requestJson. `override` replaces the committed request,
+ * the projection or the proof, for the deliberately defective vectors only.
  */
 function bindV3(row, name, override = {}) {
   const salt = v3Salt(name);
-  const requestJson = committedRequestJson(row.requestJson, row.summary);
+  const binding = receiptBindingFor(row);
+  const requestJson = override.requestJson ?? committedRequestJson(row.requestJson, row.summary, binding);
   const deciderProof = Object.prototype.hasOwnProperty.call(override, "deciderProof")
     ? override.deciderProof
     : deciderProofForSigning(row.deciderAuthMethod, row.stepUpEvidence);
   return {
     ...row,
     mintRequestJson: row.requestJson,
+    receiptBinding: binding,
     requestJson,
     requestCommitment: requestCommitment(salt, requestJson),
     publicProjectionJson: override.publicProjectionJson ?? buildPublicProjection(PROJECTION_TAG_BY_LANE[row.lane], requestJson),
@@ -874,7 +897,7 @@ function bindV3(row, name, override = {}) {
 }
 
 const V3_HINT =
-  "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, and checks the stated summary against the committed receiptSummary.";
+  "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.";
 
 function v3Envelope(bound, { description, source, expected }, override = {}) {
   const value = envelope(bound, { description, source }, override);
@@ -937,9 +960,20 @@ const v3ProofShapeBound = bindV3({ ...v3ApproveRefund, id: v3ProofShapeId, decid
   deciderProof: { ...deciderProofForSigning("session_stepup_webauthn", v3ProofShapeEvidence), counter: v3ProofShapeEvidence.counter },
 });
 
+// No binding: an issuer defect, signed for real with the test key. The
+// committed request carries the summary but no receiptBinding, which every
+// jcs_v3 mint writes. Nothing in the signed bytes shows it: a third party
+// verifies the receipt; whoever opens the commitment gets
+// RECEIPT_BINDING_MISMATCH.
+const v3NoBindingName = "no-binding-approve-human-execute-lane-refund";
+const v3NoBindingRow = { ...v3ApproveRefund, id: "cmvec13v3nobinding0000000001" };
+const v3NoBindingBound = bindV3(v3NoBindingRow, v3NoBindingName, {
+  requestJson: canonicalJson({ ...JSON.parse(v3RefundRequestJson), [RECEIPT_SUMMARY_REQUEST_KEY]: v3NoBindingRow.summary }),
+});
+
 const v3Vectors = {
   "approve-human-deploy-gate-private-repo.json": v3Envelope(v3PrivateBound, {
-    description: "jcs_v3. APPROVED by a named human on the deploy-gate lane for a private repository, after a passkey step-up. The signed bytes carry no companyId, idemKey, requestJson, inputHash or summary: a salted requestCommitment, a deploy_gate/v1 projection and a webauthn deciderProof instead. scope.visibility is private, so the projection omits every repository-identity (†) path: no repository, ref, workflow, branches, changed paths or PR number. The commit SHA, environment, capability and rule@version stay public. The proof carries three digests, the relying party, the review round and the time; the stored evidence's counter, bound request id and bound scope hash are not signed. The committed request, with the summary under receiptSummary, is test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json.",
+    description: "jcs_v3. APPROVED by a named human on the deploy-gate lane for a private repository, after a passkey step-up. The signed bytes carry no companyId, idemKey, requestJson, inputHash or summary: a salted requestCommitment, a deploy_gate/v1 projection and a webauthn deciderProof instead. companyId, idemKey and inputHash are committed inside the request under receiptBinding, the summary under receiptSummary. scope.visibility is private, so the projection omits every repository-identity (†) path: no repository, ref, workflow, branches, changed paths or PR number. The commit SHA, environment, capability and rule@version stay public. The proof carries three digests, the relying party, the review round and the time; the stored evidence's counter, bound request id and bound scope hash are not signed. The committed request, with the binding under receiptBinding and the summary under receiptSummary, is test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json.",
     source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on; signing/receipt-v3.ts, public-projection.ts, request-commitment.ts, decider-proof.ts",
     expected: "verified",
   }),
@@ -954,7 +988,7 @@ const v3Vectors = {
     expected: "verified",
   }),
   "revoke-human-deploy-gate.json": v3Envelope(v3RevokeBound, {
-    description: "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and copies the revoked request's scope under the same visibility rule. The reason is free text: it is the summary, committed under receiptSummary, and is neither signed nor projected.",
+    description: "jcs_v3. The private-repository approval above, revoked: the revocation lane, DENIED, resolutionType deny. The revocation/v1 projection links the revoked receipt and request and carries the revoked request's scope without repository identity: a revocation records scope.visibility only from a fresh read of the repository, and none was made, so it is treated as private. deciderDisplay is the revoker's internal user id, as the revoke route signs it. The reason is free text: it is the summary, committed under receiptSummary, and is neither signed nor projected.",
     source: "app src/app/api/v1/receipts/[receiptId]/revoke/route.ts with PP_RECEIPT_V3=on",
     expected: "verified",
   }),
@@ -982,6 +1016,11 @@ const v3Vectors = {
     source: "SPEC.md sections 3.8 and 6.7, decider proof check",
     expected: "DECIDER_PROOF_INVALID",
   }),
+  [`${v3NoBindingName}.json`]: v3Envelope(v3NoBindingBound, {
+    description: "A deliberate issuer defect, signed for real with the test key: an execute-lane v3 approval whose committed request carries the summary but no receiptBinding, which every jcs_v3 mint writes (SPEC.md section 3.5). Nothing in the signed bytes shows it, so a verifier without the request verifies it. Opening its commitment gives RECEIPT_BINDING_MISMATCH: the record cannot be the one the issuer committed.",
+    source: "SPEC.md sections 3.5 and 6.7, step 3",
+    expected: "verified",
+  }),
 };
 
 // The private side. A real issuer never publishes it; it hands a request, its
@@ -990,11 +1029,12 @@ const reformattedPrivateRequest = JSON.stringify(JSON.parse(v3PrivateBound.reque
 const modifiedRefundRequest = v3RefundBound.requestJson.replace('"amountCents":480000', '"amountCents":480001');
 if (modifiedRefundRequest === v3RefundBound.requestJson) throw new Error("modified refund request did not change");
 
-const opening = (receiptVector, requestFile, salt, summary, expected, note) => ({
+const opening = (receiptVector, requestFile, salt, summary, expected, note, binding) => ({
   receipt_vector: receiptVector,
   request_file: requestFile,
   salt_hex: salt.toString("hex"),
   ...(summary === undefined ? {} : { summary }),
+  ...(binding === undefined ? {} : { binding }),
   expected,
   note,
 });
@@ -1005,12 +1045,13 @@ const v3Openings = {
   "revoke-human-deploy-gate.request.json": new ExactText(v3RevokeBound.requestJson),
   "reformatted-approve-human-deploy-gate-private-repo.request.json": new ExactText(reformattedPrivateRequest),
   "modified-approve-human-execute-lane-refund.request.json": new ExactText(modifiedRefundRequest),
+  [`${v3NoBindingName}.request.json`]: new ExactText(v3NoBindingBound.requestJson),
   "openings.json": {
     description:
-      "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 3). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting), a 32-byte salt in hex and, when present, summary: the summary the issuer states for the receipt beside the request (a string, or null for none), which must equal the committed receiptSummary. A case without summary states none and compares nothing. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH, COMMITTED_SUMMARY_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
+      "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 3). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting), a 32-byte salt in hex and, when present, summary: the summary the issuer states for the receipt beside the request (a string, or null for none), which must equal the committed receiptSummary; and binding: the companyId, idemKey and inputHash the issuer states for the receipt (any subset; the owner fields company_id, idem_key and input_hash), each of which must equal the committed receiptBinding value. A case without summary or binding states none and compares nothing, but the committed request must still carry a receiptBinding as the mint writes it. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH, COMMITTED_SUMMARY_MISMATCH, RECEIPT_BINDING_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
     generated_by: "node tools/generate-vectors.mjs",
     cases: [
-      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, v3PrivateBound.summary, "opened", "The committed request and its salt reproduce requestCommitment, the stated summary is the committed receiptSummary, and the deploy_gate/v1 projection rebuilt from the request equals the signed one."),
+      opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, v3PrivateBound.summary, "opened", "The committed request and its salt reproduce requestCommitment, the stated summary is the committed receiptSummary, the stated companyId, idemKey and inputHash are the committed receiptBinding, and the deploy_gate/v1 projection rebuilt from the request equals the signed one.", v3PrivateBound.receiptBinding),
       opening("approve-human-deploy-gate-public-repo.json", "approve-human-deploy-gate-public-repo.request.json", v3PublicBound.salt, v3PublicBound.summary, "opened", "As above, for the public repository."),
       opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, v3RefundBound.summary, "opened", "As above, under execute/v1."),
       opening("revoke-human-deploy-gate.json", "revoke-human-deploy-gate.request.json", v3RevokeBound.salt, v3RevokeBound.summary, "opened", "As above, under revocation/v1: the revocation reason is the committed summary."),
@@ -1020,6 +1061,8 @@ const v3Openings = {
       opening("approve-human-execute-lane-refund.json", "modified-approve-human-execute-lane-refund.request.json", v3RefundBound.salt, undefined, "REQUEST_COMMITMENT_MISMATCH", "The right salt with one byte of the request changed (amountCents 480000 to 480001), a field the projection does not show."),
       opening("approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-private-repo.request.json", v3PrivateBound.salt, `${v3PrivateBound.summary}. Amount limit raised to unlimited.`, "COMMITTED_SUMMARY_MISMATCH", "The commitment opens, but the stated summary was edited after signing: it is not the committed receiptSummary. The summary is not in the signed bytes, so only an opening catches this."),
       opening("revoke-human-deploy-gate.json", "revoke-human-deploy-gate.request.json", v3RevokeBound.salt, null, "COMMITTED_SUMMARY_MISMATCH", "The commitment opens, but the summary is stated as none while the request commits the revocation reason."),
+      opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, v3RefundBound.summary, "RECEIPT_BINDING_MISMATCH", "The commitment opens and the summary holds, but the stated companyId is another workspace's: the stored record says the receipt belongs to a workspace the commitment does not bind. jcs_v2 signed companyId; jcs_v3 commits it under receiptBinding, so only an opening catches this.", { ...v3RefundBound.receiptBinding, companyId: "co_vector_tenant_0002" }),
+      opening(`${v3NoBindingName}.json`, `${v3NoBindingName}.request.json`, v3NoBindingBound.salt, v3NoBindingBound.summary, "RECEIPT_BINDING_MISMATCH", "The commitment opens and the summary holds, but the committed request carries no receiptBinding, which every jcs_v3 mint writes: the record cannot be the one the issuer committed. No binding needs to be stated for this to fail."),
       opening(`${v3LeakName}.json`, "approve-human-execute-lane-refund.request.json", v3LeakBound.salt, v3LeakBound.summary, "PUBLIC_PROJECTION_MISMATCH", "The commitment opens and the summary holds, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."),
     ],
   },
@@ -1084,6 +1127,7 @@ if (inputsPath) {
     salt_hex: bound.salt.toString("hex"),
     request_json: bound.mintRequestJson,
     summary: bound.summary,
+    receipt_binding: bound.receiptBinding,
     step_up_evidence: bound.stepUpEvidence ?? null,
     fields: Object.fromEntries(
       ["id", "companyId", "idemKey", "agentId", "runId", "inputHash", "status", "riskTier", "policyVersion", "reasonCodes", "createdAt", "expiresAt"].map((field) => [field, bound[field] ?? null])

@@ -27,12 +27,12 @@ jobs:
           if node tools/verify.mjs test-vectors/attestations/tampered-attest-failed-human-execute-lane-create-pr.json test-vectors/keys.json --receipt test-vectors/approve-human-execute-lane-create-pr.json; then
             echo "tampered attestation verified; that is a bug" && exit 1
           fi
-      - name: Verify one jcs_v3 receipt and open its commitment, with its stated summary, through the reference CLI
+      - name: Verify one jcs_v3 receipt and open its commitment, with its stated summary and binding, through the reference CLI
         run: |
-          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/salt", c.salt_hex); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/summary.txt", c.summary)'
+          node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/salt", c.salt_hex); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/summary.txt", c.summary); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/binding.json", JSON.stringify(c.binding))'
           node tools/verify.mjs test-vectors/v3/approve-human-deploy-gate-private-repo.json test-vectors/keys.json \
             --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$(cat "$RUNNER_TEMP/salt")" \
-            --summary "$RUNNER_TEMP/summary.txt"
+            --summary "$RUNNER_TEMP/summary.txt" --binding "$RUNNER_TEMP/binding.json"
       - name: A stated summary the commitment does not bind must not open it
         run: |
           node -e 'const c = require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.expected === "COMMITTED_SUMMARY_MISMATCH" && typeof c.summary === "string"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/bad-summary.txt", c.summary)'
@@ -43,6 +43,24 @@ jobs:
           if [ "$code" -ne 10 ]; then
             echo "expected exit 10 (commitment not opened: committed summary mismatch), got $code" && exit 1
           fi
+      - name: A stated binding value the commitment does not bind, or a committed request without receiptBinding, must not open it
+        run: |
+          node -e 'const cases = require("./test-vectors/v3/openings/openings.json").cases.filter((c) => c.expected === "RECEIPT_BINDING_MISMATCH"); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/binding-cases.json", JSON.stringify(cases)); const stated = cases.find((c) => c.binding); require("fs").writeFileSync(process.env.RUNNER_TEMP + "/bad-binding.json", JSON.stringify(stated.binding))'
+          for index in 0 1; do
+            vector=$(node -e 'console.log(require(process.argv[1])[process.argv[2]].receipt_vector)' "$RUNNER_TEMP/binding-cases.json" "$index")
+            request=$(node -e 'console.log(require(process.argv[1])[process.argv[2]].request_file)' "$RUNNER_TEMP/binding-cases.json" "$index")
+            salt=$(node -e 'console.log(require(process.argv[1])[process.argv[2]].salt_hex)' "$RUNNER_TEMP/binding-cases.json" "$index")
+            stated=$(node -e 'console.log(require(process.argv[1])[process.argv[2]].binding ? "yes" : "")' "$RUNNER_TEMP/binding-cases.json" "$index")
+            code=0
+            if [ -n "$stated" ]; then
+              node tools/verify.mjs "test-vectors/v3/$vector" test-vectors/keys.json --request "test-vectors/v3/openings/$request" --salt "$salt" --binding "$RUNNER_TEMP/bad-binding.json" || code=$?
+            else
+              node tools/verify.mjs "test-vectors/v3/$vector" test-vectors/keys.json --request "test-vectors/v3/openings/$request" --salt "$salt" || code=$?
+            fi
+            if [ "$code" -ne 10 ]; then
+              echo "$vector: expected exit 10 (receipt binding mismatch), got $code" && exit 1
+            fi
+          done
       - name: The tampered jcs_v3 vector must fail at the signature
         run: |
           if node tools/verify.mjs test-vectors/v3/tampered-approve-human-deploy-gate-private-repo.json test-vectors/keys.json; then
