@@ -8,6 +8,8 @@ How a signed receipt relates to the controls buyers are asked about. Three statu
 
 Permission Protocol implements controls and produces evidence. It is not a conformance target, and nothing here is a certification, a compliance claim, or a statement that any framework's requirement is met. The site pages linked below carry the full mappings and are the source of record; this appendix pins the receipt fields each mapping relies on so an assessor can go from a control to a field to a byte.
 
+The field names below are those of `jcs_v2`. A `jcs_v3` receipt (`SPEC.md` section 3.4) does not sign `requestJson` or `inputHash`. Read them there as `publicProjectionJson`, the part of the request anyone can check, and `requestCommitment`, which binds the full request for the workspace that opens it (`SPEC.md` section 6.7).
+
 ## AIUC-1 (July 15, 2026 numbering)
 
 Full mapping: https://permissionprotocol.com/compliance/aiuc-1

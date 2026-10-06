@@ -1,0 +1,66 @@
+{
+  "description": "A deliberate issuer defect, signed for real with the test key: an execute-lane v3 receipt whose projection also carries action.parameters, which execute/v1 never publishes. The signature verifies; the projection check MUST reject it as PROJECTION_NOT_ALLOWED, a policy failure, not tampering. Opening its commitment with the right request and salt gives PUBLIC_PROJECTION_MISMATCH.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "SPEC.md section 6.7, projection check",
+  "artifact": {
+    "receipt_id": "cmvec10v3leakedparams00000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "a286d7bef4dc5b61ceeb347e3eaff8e88dcfe2a9cd6569a52edefbcfa9006404",
+    "signature_b64": "fp/jjO24nbyrQHxku9EHmjX2EIaJKbzndy1dOGqoXTgWyCQn84PdBVJz+szsHA+Ol5MigthvB0PerPDbLWh9Aw==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoib3BzLWFnZW50IiwiYXR0cmlidXRpb25Db25maWRlbmNlIjoiY3JlZGVudGlhbGVkIiwiY2Fub25pY2FsaXphdGlvbiI6Impjc192MyIsImNyZWF0ZWRBdCI6IjIwMjYtMTAtMDZUMTE6MDI6MDAuMDAwWiIsImRlY2lkZXJBdXRoTWV0aG9kIjoic2Vzc2lvbiIsImRlY2lkZXJEaXNwbGF5IjoiYWxpY2UtZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19hbGljZV8wMDAwMDAwMSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMDZUMTE6MjA6MDAuMDAwWiIsImlkIjoiY212ZWMxMHYzbGVha2VkcGFyYW1zMDAwMDAwMDEiLCJwb2xpY3lWZXJzaW9uIjoicG9sX3YxX2hhcmRjb2RlZCIsInB1YmxpY1Byb2plY3Rpb25Kc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJyZWZ1bmRcIixcInBhcmFtZXRlcnNcIjp7XCJhbW91bnRDZW50c1wiOjQ4MDAwMCxcImNoYXJnZUlkXCI6XCJjaF8zUXgxXCIsXCJyZWFzb25cIjpcImR1cGxpY2F0ZVwifSxcInRvb2xcIjpcInN0cmlwZVwifSxcImNvbnRleHRcIjp7XCJlbnZpcm9ubWVudFwiOlwicHJvZHVjdGlvblwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCJ9LFwiaW50ZW50XCI6e1wiY2F0ZWdvcnlcIjpcInBheW1lbnRzXCIsXCJuYW1lXCI6XCJzdHJpcGU6cmVmdW5kXCJ9LFwicHJvamVjdGlvblwiOlwiZXhlY3V0ZS92MVwifSIsInJlYXNvbkNvZGVzIjoiW1wiVU5SRUdJU1RFUkVEX1RPT0w6c3RyaXBlXCIsXCJJUlJFVkVSU0lCTEU6SVJSRVZFUlNJQkxFXCIsXCJQUk9EVUNUSU9OX0VOVlwiLFwiUFJPRFVDVElPTl9SRVFVSVJFU19BUFBST1ZBTFwiXSIsInJlY2VpcHRWZXJzaW9uIjozLCJyZXF1ZXN0Q29tbWl0bWVudCI6InNoYTI1NjpiZjIxNGI5ZjgyYjFhOGEyZjAwNWE3YTZiODQ0MTlkOTljYTJjODNiYjI5YmMzOWMxZjE0YjE1ZDBhZTE4OGYyIiwicmVzb2x1dGlvblR5cGUiOiJhbGxvd19vbmNlIiwicmlza1RpZXIiOiJDX0VYRUNVVEVfV0lUSF9BUFBST1ZBTCIsInJ1bklkIjoicnVuX2MwZmZlZTAyIiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQiLCJzdW1tYXJ5IjoiUHJvZHVjdGlvbiBlbnZpcm9ubWVudCByZXF1aXJlcyBodW1hbiBhcHByb3ZhbCJ9",
+    "issued_at": "2026-10-06T11:02:00.000Z",
+    "expires_at": "2026-10-06T11:20:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt.",
+  "receipt": {
+    "agentId": "ops-agent",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-06T11:02:00.000Z",
+    "deciderAuthMethod": "session",
+    "deciderDisplay": "alice-example",
+    "deciderId": "user:usr_vec_alice_00000001",
+    "expiresAt": "2026-10-06T11:20:00.000Z",
+    "id": "cmvec10v3leakedparams00000001",
+    "policyVersion": "pol_v1_hardcoded",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"refund\",\"parameters\":{\"amountCents\":480000,\"chargeId\":\"ch_3Qx1\",\"reason\":\"duplicate\"},\"tool\":\"stripe\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"IRREVERSIBLE\"},\"intent\":{\"category\":\"payments\",\"name\":\"stripe:refund\"},\"projection\":\"execute/v1\"}",
+    "reasonCodes": "[\"UNREGISTERED_TOOL:stripe\",\"IRREVERSIBLE:IRREVERSIBLE\",\"PRODUCTION_ENV\",\"PRODUCTION_REQUIRES_APPROVAL\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:bf214b9f82b1a8a2f005a7a6b84419d99ca2c83bb29bc39c1f14b15d0ae188f2",
+    "resolutionType": "allow_once",
+    "riskTier": "C_EXECUTE_WITH_APPROVAL",
+    "runId": "run_c0ffee02",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED",
+    "summary": "Production environment requires human approval"
+  },
+  "expected": "PROJECTION_NOT_ALLOWED",
+  "projection": {
+    "action": {
+      "operation": "refund",
+      "parameters": {
+        "amountCents": 480000,
+        "chargeId": "ch_3Qx1",
+        "reason": "duplicate"
+      },
+      "tool": "stripe"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "IRREVERSIBLE"
+    },
+    "intent": {
+      "category": "payments",
+      "name": "stripe:refund"
+    },
+    "projection": "execute/v1"
+  }
+}

@@ -1,6 +1,6 @@
 # Permission Protocol Receipt Format, as emitted
 
-**Version markers covered:** `receiptVersion` `2`, `canonicalization` `jcs_v2`. **Status:** describes what the hosted service at `app.permissionprotocol.com` has issued since 2026-07-09, traced field by field to the code that writes it. **Date:** 2026-09-08. **License:** CC BY 4.0 for this text; Apache-2.0 for the schemas, vectors, and tools.
+**Version markers covered:** `receiptVersion` `2`, `canonicalization` `jcs_v2`; and `receiptVersion` `3`, `canonicalization` `jcs_v3` (sections 3.4 to 3.7 and 6.7). **Status:** the `jcs_v2` text describes what the hosted service at `app.permissionprotocol.com` has issued since 2026-07-09, traced field by field to the code that writes it. `jcs_v3` is specified before it is issued: the issuer's implementation (`permission-protocol/app` commit `c655e8d5`) sits behind a switch that is off by default, its bytes were checked against `test-vectors/v3/`, and no `jcs_v3` receipt had been issued as of 2026-10-06. The issuer turns it on only once this text is published, and `VERSIONING.md` will record the date it does. **Date:** 2026-09-08; `jcs_v3` sections 2026-10-06. **License:** CC BY 4.0 for this text; Apache-2.0 for the schemas, vectors, and tools.
 
 This document supersedes `RECEIPT-FORMAT-V1.md` as the description of the current format. The v1 document stays in this repository unchanged, because it is what `jcs_v1` receipts were published against; section 5.5 records where it disagreed with the product.
 
@@ -8,7 +8,7 @@ This document supersedes `RECEIPT-FORMAT-V1.md` as the description of the curren
 
 A receipt is a signed statement that one decision was made about one gated action: approved or denied, by whom, under which policy version, at what time, against which exact action snapshot. It is issued by the system that made or recorded the decision and verified by anyone holding the issuer's public key. It proves authorization. It does not prove that the action ran, that it succeeded, or that the decision was wise.
 
-In scope: the signed payload (section 3), how its bytes are built (section 4), how they are signed and how keys are found (section 5), the portable envelope and the verify procedure (section 6), and what the decision and decider fields mean (section 7).
+In scope: the signed payload (section 3; for `jcs_v3`, the request commitment and public projection that replace the request in the signed bytes, sections 3.4 to 3.7), how its bytes are built (section 4), how they are signed and how keys are found (section 5), the portable envelope and the verify procedure (section 6), and what the decision and decider fields mean (section 7).
 
 Out of scope: the policy language, the approval user interface, and the storage of receipts. Verifiers need none of them.
 
@@ -23,10 +23,16 @@ Key words MUST, MUST NOT, SHOULD, and MAY are as in RFC 2119.
 - **Signed payload**: the JSON object whose canonical bytes the signature covers. Section 3.
 - **Artifact**: the portable envelope carrying the signed bytes, the signature, the digest, and the key id. Section 6.1.
 - **Issuer**: the party holding the private key for `signatureKeyId`.
+- **Revocation**: the withdrawal of an unused deploy-gate approval. The issuer signs it as a `DENIED` receipt of its own (`rcpt_rev_<uuid>`); `jcs_v3` treats revocations as a lane with their own projection (section 3.7).
+- **Committed request** (`jcs_v3`): the issuer's private action snapshot, `requestJson`, bound into the signature through a salted commitment (section 3.5) instead of being carried in the signed bytes.
+- **Public projection** (`jcs_v3`): the part of the committed request that the allowlist of the receipt's lane makes public, signed as `publicProjectionJson` (section 3.6). Its **projection tag** names the allowlist and its version: `deploy_gate/v1`, `execute/v1` or `revocation/v1` (section 3.7).
+- **Opening** (`jcs_v3`): presenting the exact request text and the salt that reproduce a commitment (section 6.7).
 
 ## 3. Data model
 
 ### 3.1 The signed payload
+
+This section is the `jcs_v2` field set (`receiptVersion` 2). `jcs_v3` signs a different set, derived from this one: section 3.4.
 
 The signed payload is a flat JSON object. Its field names are the hosted service's stored column names, which is what lets the issuer re-canonicalize a stored row and detect post-signing mutation. A field whose stored value is null is **absent** from the payload; it is never present with a null value (section 4, step 2).
 
@@ -66,6 +72,8 @@ The issuer stores more than it signs. `signatureValue`, `signedPayloadBytes`, `s
 - **Execution outcome is not in the receipt.** `executionJson` and `errorJson` record what a tool returned on the execute lane; they are unsigned issuer data and may be absent. A receipt proves authorization, not completion. The outcome, when the issuer recorded one, is a separate signed object that references the receipt: the execution attestation (section 9).
 - **Redemption is issuer state.** One-time redemption (`redeemedAt`) is enforced by the issuer's verify endpoint for CI gates. It is not evidence and it is not signed.
 
+Under `jcs_v3` (section 3.4) four more stored fields fall outside the signed set: `companyId`, `idemKey`, `requestJson` and `inputHash`. The signature still binds `requestJson`, through `requestCommitment`. The salt that opens that commitment (`requestCommitmentSalt`, 32 bytes) is stored beside the receipt, is never signed, and is never placed on a public surface.
+
 ### 3.3 `requestJson`
 
 `requestJson` is the exact action the decider saw, serialized once by the issuer with recursively sorted keys and no whitespace, then stored and signed as a string. Signing the string rather than an embedded object is deliberate: the bytes cannot drift with a re-serialization.
@@ -77,18 +85,203 @@ Its contents are lane-specific and issuer-defined. Verifiers MUST treat `request
 
 A verifier checking that a receipt covers the action in front of it compares the fields it cares about (repository, commit, tool, parameters) against the parsed `requestJson`, and the digest of its own canonical input against `inputHash`.
 
-## 4. Canonicalization (`jcs_v2`)
+Under `jcs_v3`, `requestJson` is not in the signed bytes. The issuer stores it as canonical text (sorted keys, no whitespace) and signs a commitment to it (3.5) and a projection of it (3.6).
+
+### 3.4 The `jcs_v3` signed payload (`receiptVersion` 3)
+
+A receipt link travels well beyond the workspace that owns it: pull-request comments and commit statuses, notifications, forwarded messages. The public artifact carries the signed bytes, so under `jcs_v2` those bytes publish the request itself: repository names, changed paths, model-written descriptions of a private change, an agent's parameters. `jcs_v3` signs a salted commitment to the request and an allowlisted projection of it instead. It is designed so that its signed bytes carry nothing the public receipt page does not show, while the signature still binds exactly one request.
+
+The `jcs_v3` signed field set has 22 fields and is frozen:
+
+`id`, `agentId`, `runId`, `requestCommitment`, `publicProjectionJson`, `status`, `riskTier`, `policyVersion`, `reasonCodes`, `summary`, `receiptVersion`, `canonicalization`, `signatureAlg`, `signatureKeyId`, `expiresAt`, `createdAt`, `deciderId`, `deciderDisplay`, `deciderAuthMethod`, `resolutionType`, `attributionConfidence`, `scope`.
+
+Relative to `jcs_v2`:
+
+| Change | Field | Type, presence | Why |
+|---|---|---|---|
+| removed | `companyId` | | The tenant id links one workspace's receipts across repositories. |
+| removed | `idemKey` | | Deploy gate: embeds the unsalted scope hash. Execute lane: the caller's free-text idempotency key, or else the unsalted `inputHash`. |
+| removed | `requestJson` | | The private request. Committed and projected instead. |
+| removed | `inputHash` | | An unsalted hash over the request or its scope confirms a guessed repository, recipient or parameter. |
+| added | `requestCommitment` | string, always | `sha256:` plus 64 lowercase hex: a salted commitment to the exact `requestJson` text (3.5). |
+| added | `publicProjectionJson` | string, always | Canonical JSON text of the public projection of `requestJson`, naming its tag (3.6, 3.7). |
+
+The other 20 fields keep the types and meanings of section 3.1, except that `receiptVersion` is the integer `3` and `canonicalization` is `jcs_v3`. Every `jcs_v3` receipt signs a decider: `deciderId`, `deciderDisplay`, `attributionConfidence` and `scope` are always present. `schema/receipt-v3.json` encodes this table with `additionalProperties: false`.
+
+**Which receipts are `jcs_v3`.** Once the issuer turns `jcs_v3` on, every mint path with a projection tag signs it: the deploy-gate lane (human approve and deny, webhook clearance and policy denial, re-approval, carry-forward, denial repair, policy override, demo approve and deny, merged-PR deployment renewal), the execute lane, and revocations. The ledger lane, which is not routed today, has no tag and keeps signing `jcs_v2`. Receipts already signed under `jcs_v1` or `jcs_v2` keep their bytes and verify under their own rules forever; nothing is re-signed, rewritten or migrated (`VERSIONING.md`).
+
+**`summary` stays signed and public.** It is the decision's stated reason, and it can carry text a decider typed: an approval or denial reason, an override justification, a revocation reason. Where the issuer writes the summary itself, `jcs_v3` mint paths sign fixed issuer text rather than a model-written description of the change. A deploy-gate webhook clearance, for example, signs `PP analyzed this change and cleared it under default policy`.
+
+### 3.5 `requestCommitment`
+
+```
+requestCommitment = "sha256:" + lowercase_hex( SHA-256( salt || UTF-8(requestJson) ) )
+```
+
+- **`salt`** is 32 bytes from a cryptographically secure random generator, drawn fresh for each receipt and never reused. The fixed length makes the concatenation unambiguous. The issuer stores it beside the receipt; it is not signed and is never published on a public surface.
+- **`requestJson`** is the exact stored request text, byte for byte. Under `jcs_v3` the issuer stores canonical text (3.3) and refuses to sign anything else. An opening hashes the text as given and never re-serializes it, so a pretty-printed copy of the same object does not open the commitment.
+- **Binding** rests on the collision resistance of SHA-256: the signature commits the issuer to exactly one request text. **Hiding** rests on the salt: without it the commitment confirms nothing about a guessed request, which is the property `inputHash` lacked.
+- **One salt per receipt**, not per workspace. Two receipts over the same request get unlinkable commitments, and the workspace can open one receipt for an auditor without opening any other.
+
+The issuer opens the commitment on every verification it performs. The workspace that owns the receipt receives the request text and its salt through the issuer's authenticated surfaces; this document does not specify the envelope fields those surfaces use. Anyone the workspace gives one receipt's request and salt can open that receipt (section 6.7, step 2).
+
+### 3.6 `publicProjectionJson`
+
+The public projection is a pruned copy of the committed request. The issuer builds it from `requestJson` under the allowlist of the receipt's lane and signs it as JSON **text**, for the same reason it signed `requestJson` as text (3.3). Values keep the paths they have in the request: a reader that took `scope.commitSha` or `policy.decision.ruleId` from a `jcs_v2` `requestJson` reads the same path in a `jcs_v3` projection.
+
+**Build rule.** The projection is a pure function of the tag and the request text:
+
+1. Parse `requestJson`. If it is not a JSON object, there is no receipt: the issuer fails closed before signing.
+2. For each path in the tag's allowlist (3.7), in order, copy the value if it is present:
+   - `a.b` names key `b` of object `a`. If an intermediate value is absent or is not an object, nothing is copied.
+   - `a[].b` applies to an array `a`; if `a` is not an array, nothing is copied. The projection gets an array of the same length with one object per element, and each object receives key `b` of the matching element when that element is an object. An element that receives nothing stays as `{}`, so sibling paths of the same array stay aligned by position.
+   - At the last segment, a **value** slot copies a scalar (string, number, boolean or `null`) or an array of scalars unchanged. Any other value, such as an object or an array holding an object, is omitted.
+   - An **identifier** slot copies a string only when it matches `^[A-Za-z0-9._:/-]{1,128}$`. A **one of** slot copies a string only when it is one of the listed values. Anything else is omitted, never truncated, so free text never rides in an identifier slot.
+   - Nothing is null-filled: an absent path stays absent.
+3. Paths marked **†** are repository identity. They are copied only when the same request's `scope.visibility` is exactly the string `"public"`; absent or any other value counts as private. The issuer records `scope.visibility` (`public` or `private`) at signing from what GitHub reported for the repository, and records none when it learned nothing.
+4. Remove every object or array that the build created and that received nothing, recursively. Array elements are the exception: they stay as `{}` while any element of the same array received something. An array whose elements all received nothing is removed.
+5. Add the top-level key `projection` with the tag as its value, sort keys recursively, and serialize without whitespace (`JSON.stringify` semantics). The result is `publicProjectionJson`.
+
+`tools/public-projection.mjs` implements the rule; section 12 records its byte-for-byte check against the issuer's implementation.
+
+**Tags are frozen.** A tag's allowlist is frozen once a receipt is signed with it, under the same rule as a canonicalization version. A new lane or a changed allowlist is a new tag, such as `deploy_gate/v2`, not a new canonicalization: the signed field set and the byte rules stay the same. A verifier that does not know a tag fails closed (section 6.7).
+
+### 3.7 Projection allowlists
+
+Each table is normative. It lists every path its tag may publish, in build order, with the slot kind from 3.6 step 2 (**value**, **identifier**, or **one of** the listed strings). † marks repository identity (3.6 step 3). A path that is not listed is never projected.
+
+#### `deploy_gate/v1`
+
+Signed by every deploy-gate mint path listed in 3.4: intents `deploy_gate_approval`, `deploy_gate_denial` and `deploy_gate_policy_override`, and the merged-PR deployment renewal.
+
+| Path | Slot | † |
+|---|---|---|
+| `intent.name` | value |  |
+| `intent.category` | value |  |
+| `action.tool` | value |  |
+| `action.operation` | value |  |
+| `context.environment` | identifier |  |
+| `context.reversibility` | one of `REVERSIBLE`, `PARTIALLY_REVERSIBLE`, `IRREVERSIBLE` |  |
+| `scope.env` | identifier |  |
+| `scope.capability` | identifier |  |
+| `scope.commitSha` | identifier |  |
+| `scope.artifact_digest` | identifier |  |
+| `scope.visibility` | one of `public`, `private` |  |
+| `scope.repo` | identifier | † |
+| `scope.ref` | identifier | † |
+| `scope.workflow` | identifier | † |
+| `policy.expiresAt` | value |  |
+| `policy.decision.outcome` | value |  |
+| `policy.decision.ruleId` | value |  |
+| `policy.decision.ruleVersion` | value |  |
+| `policy.decision.matchedInputs.changeClass` | value |  |
+| `policy.decision.matchedInputs.analysisComplete` | value |  |
+| `policy.decision.matchedInputs.targetBranch` | value | † |
+| `policy.decision.matchedInputs.defaultBranch` | value | † |
+| `policy.decision.matchedInputs.changedPaths` | value | † |
+| `policy.authorizationBinding.version` | value |  |
+| `policy.authorizationBinding.path` | value |  |
+| `policy.authorizationBinding.commitSha` | value |  |
+| `policy.authorizationBinding.rulesHash` | value |  |
+| `policy.authorizationBinding.repository` | value | † |
+| `policy.authorizationBinding.branch` | value | † |
+| `policy.authorizationBinding.prNumber` | value | † |
+| `policyAuthorization.version` | value |  |
+| `policyAuthorization.evaluatorVersion` | value |  |
+| `policyAuthorization.policyBlob` | value |  |
+| `policyAuthorization.headSha` | value |  |
+| `policyAuthorization.branch` | value | † |
+| `policyAuthorization.recordedDecisions[].displayName` | value |  |
+| `policyAuthorization.recordedDecisions[].authMethod` | value |  |
+| `policyAuthorization.recordedDecisions[].at` | value |  |
+| `metadata.deployGateRequestId` | value |  |
+| `metadata.denial.category` | value |  |
+| `metadata.denial.decisionClass` | value |  |
+| `metadata.denial.ruleId` | value |  |
+| `metadata.denial.final` | value |  |
+| `metadata.denial.requireNewRequest` | value |  |
+| `metadata.denial.decidedAt` | value |  |
+| `metadata.override.overriddenReceiptId` | value |  |
+| `metadata.override.overriddenDecisionClass` | value |  |
+| `metadata.override.ruleId` | value |  |
+| `metadata.override.ruleVersion` | value |  |
+| `metadata.override.deniedAt` | value |  |
+| `metadata.override.grantsAuthorization` | value |  |
+| `metadata.override.nextState` | value |  |
+| `metadata.pullRequest` | value | † |
+| `metadata.demo` | value |  |
+| `metadata.demoScope` | value |  |
+| `metadata.approverDisplayName` | value |  |
+| `deploymentRenewal.purpose` | value |  |
+| `deploymentRenewal.previousReceiptId` | value |  |
+| `deploymentRenewal.mergeCommitSha` | value |  |
+| `deploymentRenewal.rulesHash` | value |  |
+| `deploymentRenewal.recordedDecisions[].displayName` | value |  |
+| `deploymentRenewal.recordedDecisions[].authMethod` | value |  |
+| `deploymentRenewal.recordedDecisions[].at` | value |  |
+
+The commit SHA, the artifact digest, the policy commit and the rules hash are projected for every repository. They bind the receipt to exact content for anyone who can see the repository, and they reveal nothing to anyone who cannot. For a private repository, the projection does not carry the repository name, ref, workflow, branches, changed paths or pull-request number.
+
+Never projected, so they stay behind the commitment:
+
+- `enrichmentSnapshot`, all of it.
+- `intent.summary`.
+- From `policy.decision.matchedInputs`: `riskSignals`, `repoPolicy` (the customer's rule rationale and matched files), `approvalRequirements` (approver lists), `ruleEvaluations` and `findings`.
+- `metadata.denial.reason` and `.deciderKind`. The signed `deciderId` already names who denied.
+- `metadata.override.justification`, `.overriddenDecider`, `.overriddenDeciderKind` and `.deniedGeneration`.
+- `policyAuthorization.requirements`, `.binding`, `.repo`, `.round`, `.policyRef` and `recordedDecisions[].userId`.
+- `deploymentRenewal.reviewBinding`, an unsalted hash over guessable scope and branch facts, and `deploymentRenewal.recordedDecisions[].userId`.
+- Every key that is not listed.
+
+#### `execute/v1`
+
+Signed by the execute lane (the permission router's decisions). The four names are typed by the agent, so they are identifier slots. The two context values are the enums the execute API validates.
+
+| Path | Slot | † |
+|---|---|---|
+| `intent.name` | identifier |  |
+| `intent.category` | identifier |  |
+| `action.tool` | identifier |  |
+| `action.operation` | identifier |  |
+| `context.environment` | one of `development`, `staging`, `production` |  |
+| `context.reversibility` | one of `REVERSIBLE`, `PARTIALLY_REVERSIBLE`, `IRREVERSIBLE` |  |
+
+Never projected: `tenantId`; `actor` (`agentId` and `runId` are signed top-level fields); `intent.summary`; `action.parameters`; `context.costEstimateUsd`; `context.metadata`; `constraints`, including `idempotencyKey`; `hashes`. The policy version, the expiry, the risk tier and the reason codes on this lane are already signed top-level fields.
+
+#### `revocation/v1`
+
+Signed by revocations. The scope is copied from the revoked receipt's request, so the † rule follows the visibility recorded there. A revoked `jcs_v2` receipt recorded no visibility, so its revocation projects no repository identity.
+
+| Path | Slot | † |
+|---|---|---|
+| `intent.name` | value |  |
+| `metadata.revokedReceiptId` | value |  |
+| `metadata.deployGateRequestId` | value |  |
+| `scope.env` | identifier |  |
+| `scope.capability` | identifier |  |
+| `scope.commitSha` | identifier |  |
+| `scope.artifact_digest` | identifier |  |
+| `scope.visibility` | one of `public`, `private` |  |
+| `scope.repo` | identifier | † |
+| `scope.ref` | identifier | † |
+| `scope.workflow` | identifier | † |
+
+Never projected: `metadata.reason` (free text; it is also the signed `summary`) and `intent.summary`.
+
+## 4. Canonicalization (`jcs_v2`, `jcs_v3`)
 
 The signed bytes are built as follows. This is exactly the issuer's procedure; `tools/canonicalize.mjs` is a dependency-free reference implementation that CI checks byte for byte against the vectors and against a live production receipt.
 
-1. Take the frozen signed field list for the receipt's `canonicalization` value. For `jcs_v2` that is the 18 `jcs_v1` fields (`id`, `companyId`, `idemKey`, `agentId`, `runId`, `requestJson`, `inputHash`, `status`, `riskTier`, `policyVersion`, `reasonCodes`, `summary`, `receiptVersion`, `canonicalization`, `signatureAlg`, `signatureKeyId`, `expiresAt`, `createdAt`) plus `deciderId`, `deciderDisplay`, `deciderAuthMethod`, `resolutionType`, `attributionConfidence`, `scope`.
+1. Take the frozen signed field list for the receipt's `canonicalization` value. For `jcs_v2` that is the 18 `jcs_v1` fields (`id`, `companyId`, `idemKey`, `agentId`, `runId`, `requestJson`, `inputHash`, `status`, `riskTier`, `policyVersion`, `reasonCodes`, `summary`, `receiptVersion`, `canonicalization`, `signatureAlg`, `signatureKeyId`, `expiresAt`, `createdAt`) plus `deciderId`, `deciderDisplay`, `deciderAuthMethod`, `resolutionType`, `attributionConfidence`, `scope`. For `jcs_v3` it is the 22 fields of section 3.4.
 2. Copy each listed field whose value is neither `undefined` nor `null`. Skip the others entirely. This is why absent and null are the same thing in a payload, and why `deciderAuthMethod` and `resolutionType` are missing rather than null on some receipts.
 3. Serialize `Date` values as ISO 8601 UTC with milliseconds. All other values are copied as they are: `receiptVersion` stays an integer, `requestJson` and `reasonCodes` stay strings.
 4. Sort object keys lexicographically, recursively. (The payload is flat; the recursion matters for implementations that canonicalize nested objects.)
 5. Serialize with `JSON.stringify` semantics: no whitespace, standard JSON string escaping.
 6. UTF-8 encode. These are the **canonical bytes**. The issuer stores them as `signedPayloadBytes` and publishes them as `payload_bytes_b64`.
 
-`jcs_v2` differs from `jcs_v1` only in the field list (step 1). Steps 2 through 6 are identical, and a `jcs_v1` receipt verifies forever under its own list. Both lists are frozen: a new signed field requires `jcs_v3` (see `VERSIONING.md`).
+`jcs_v2` differs from `jcs_v1`, and `jcs_v3` from `jcs_v2`, only in the field list (step 1). Steps 2 through 6 are identical for all three, and every receipt verifies forever under the list its own `canonicalization` names. All three lists are frozen: a new signed field requires `jcs_v4` (see `VERSIONING.md`). The two `jcs_v3` additions, `requestCommitment` and `publicProjectionJson`, are strings and are copied as they are, as `requestJson` was.
+
+**Unknown versions.** A verifier dispatches on the receipt's own `canonicalization` value. It MUST report a value it does not implement as **canonicalization unsupported**: the receipt is unverifiable by that verifier, not tampered. It MUST NOT re-canonicalize the bytes under another version's list. A `jcs_v3` payload rebuilt under the `jcs_v1` or `jcs_v2` list loses its commitment and projection, so a verifier that fell back would report an intact receipt as tampered.
 
 ## 5. Signing and keys
 
@@ -168,6 +361,8 @@ The portable form of a receipt. Served publicly at `https://app.permissionprotoc
 
 Only `payload_bytes_b64` and `signature_b64` are authenticated, through the key named by `key_id`. `status`, `issued_at`, `expires_at`, and `redeemed_at` on the envelope are conveniences that MUST agree with the signed payload where they overlap and MUST NOT be trusted on their own.
 
+A `jcs_v3` receipt uses the same envelope, with `receipt_version` 3 and `canonicalization` `jcs_v3`. Its payload bytes carry no request content beyond the public projection, so they can be published for every lane. The request and its salt are not part of the envelope (3.5).
+
 ### 6.2 Verify procedure
 
 A conformant verifier performs these steps in order and stops at the first failure.
@@ -175,22 +370,28 @@ A conformant verifier performs these steps in order and stops at the first failu
 1. Parse the envelope. Require `artifact.receipt_id`, `key_id`, `alg`, `signed_payload_hash`, `signature_b64`, `payload_bytes_b64` as strings; require `alg` to be `ed25519`. Otherwise **malformed**.
 2. Base64-decode `payload_bytes_b64`. Compute `SHA-256` over the bytes. If the lowercase hex digest differs from `signed_payload_hash`: **payload hash mismatch**.
 3. Parse the bytes as JSON. Require an object whose `signatureKeyId` equals `key_id`. Otherwise **malformed**.
-4. Re-canonicalize the parsed object under its own `canonicalization` (section 4). If the result differs from the decoded bytes: **canonical mismatch**. The bytes were not produced by this specification.
+4. If the parsed object's `canonicalization` names a version the verifier does not implement: **canonicalization unsupported** (section 4). Stop, and do not report tampering. Otherwise re-canonicalize the parsed object under its own `canonicalization`. If the result differs from the decoded bytes: **canonical mismatch**. The bytes were not produced by this specification.
 5. Resolve the public key for `key_id` from the key set. Missing: **key not found**. `status: revoked`: **key revoked**.
 6. Base64-decode `signature_b64`; require 64 bytes. Verify Ed25519 over the 32-byte digest from step 2 with the resolved key. Failure: **signature invalid**.
-7. Report success with the decoded payload. Report `status` and the decider fields to the caller. Report expiry (`expiresAt` before now) as information, not as a verification failure.
+7. For `jcs_v3`, apply section 6.7. Its step 1 is required. Its step 2 runs when the verifier holds the request and its salt.
+8. Report success with the decoded payload. Report `status` and the decider fields to the caller. Report expiry (`expiresAt` before now) as information, not as a verification failure.
 
-`tools/verify.mjs` implements exactly this and exits `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed, `4` hash or canonical mismatch.
+`tools/verify.mjs` implements exactly this and exits `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed, `4` hash or canonical mismatch, `8` canonicalization or projection tag unsupported, `9` projection not allowed, `10` commitment not opened (section 6.7).
 
 ### 6.3 Schema validation
 
-After step 7 a verifier SHOULD validate the payload against `schema/receipt-v2.json` and check that `requestJson` parses to an object equal to its own canonical serialization and that `reasonCodes`, when present, parses to an array of strings. A schema failure on a receipt that passed step 6 is a policy failure (an unexpected value, an unknown decider form), not a signature failure, and SHOULD be reported as such.
+After step 8 a verifier SHOULD validate the payload against the schema for its version (`schema/receipt-v2.json` for `jcs_v2`, `schema/receipt-v3.json` for `jcs_v3`). For `jcs_v2` it SHOULD also check that `requestJson` parses to an object equal to its own canonical serialization. For both, it SHOULD check that `reasonCodes`, when present, parses to an array of strings. A schema failure on a receipt that passed step 6 is a policy failure (an unexpected value, an unknown decider form), not a signature failure, and SHOULD be reported as such.
 
 ### 6.4 What verification proves
 
 Success proves that the bytes were signed by the holder of the private key for `key_id` and are unchanged, and therefore that the decision, decider, policy version, action snapshot, and timestamps inside them are what the issuer committed to.
 
-It does not prove that the action executed or succeeded (section 3.2; an execution attestation, section 9, records what the issuer observed), that the decision was correct, that the receipt is still redeemable, or that the receipt covers the action in front of you unless you compared `requestJson` and `inputHash` to it (section 3.3).
+It does not prove that the action executed or succeeded (section 3.2; an execution attestation, section 9, records what the issuer observed), that the decision was correct, that the receipt is still redeemable, or that the receipt covers the action in front of you unless you compared `requestJson` and `inputHash` to it (section 3.3), or, for `jcs_v3`, the projection or the opened request.
+
+For a `jcs_v3` receipt, the proof depends on what the verifier holds:
+
+- **Anyone with the artifact** learns the decision, the decider, the policy version, the expiry, the time, the projected facts, and that the issuer committed to exactly one request. It learns nothing else about that request, and it cannot check that the projection was built from it. To decide whether the receipt covers an action, it compares the projected commit SHA, environment, capability, tool and operation.
+- **The holder of the request and its salt** (section 6.7, step 2) also proves that the committed request is exactly that text and that the projection was built from it by the published rule.
 
 ### 6.5 Denials
 
@@ -199,6 +400,30 @@ A `DENIED` receipt verifies with the same procedure. Authenticity and outcome ar
 ### 6.6 Online surfaces
 
 `https://app.permissionprotocol.com/r/<id>` runs the issuer's full verification on every view and withholds a receipt whose bytes do not match its signature. `GET /api/v1/public/receipts/<id>` returns public fields with a `verification` block (`verified`, `signature_intact`, `signature_status`, `state`). `POST /api/v1/receipts/verify` is the tenant-authenticated endpoint CI gates use; it adds scope matching and atomic one-time redemption on top of the cryptographic check.
+
+### 6.7 Verifying a `jcs_v3` receipt
+
+A verifier runs these steps after the signature verifies (section 6.2, step 6). A failure in either step is never reported as verified, and never as tampering: the signature is intact.
+
+**Step 1, the projection check. Every verifier MUST run it.** A third party cannot rebuild the projection without the request, but it can check that the signed projection is a possible output of the build rule for the tag it names. That check catches an issuer defect that would publish a field its tag does not allow.
+
+1. Parse `publicProjectionJson`. If it is not a JSON object, or its top-level `projection` is not a tag the verifier knows: **projection unsupported**. Fail closed; the receipt is unverifiable by that verifier.
+2. Require `publicProjectionJson` to equal the canonical serialization of the parsed object (recursively sorted keys, no whitespace).
+3. Walk every member of the object except `projection`. Each key MUST lie on a path of the tag's allowlist (3.7), with `[]` positions holding arrays and every other intermediate position holding objects.
+4. At each listed leaf, the value MUST satisfy its slot. An **identifier** is a string matching `^[A-Za-z0-9._:/-]{1,128}$`. A **one of** slot holds one of its listed strings. A **value** slot holds a scalar or an array of scalars.
+5. A † path MUST NOT appear unless the projection's own `scope.visibility` is `"public"`. The build rule copies `scope.visibility` exactly when it is `public` or `private`, so this is equivalent to the rule applied to the request.
+6. A container MUST NOT be empty, except an array element `{}`. An array at a `[]` position MUST be non-empty, hold only objects, and have at least one non-empty element.
+
+Any failure in items 2 to 6 is **projection not allowed**. It is a policy failure: the issuer signed something its own tag forbids, and the receipt MUST NOT be presented as verified.
+
+**Step 2, opening the commitment. A verifier MAY run it when it holds the request text and its salt.**
+
+1. Compute `"sha256:" + hex(SHA-256(salt || UTF-8(request text)))` over the request text exactly as given. If the result is not the signed `requestCommitment`, or the salt is not 32 bytes: **request commitment mismatch**.
+2. Rebuild the projection from the request text under the tag that the signed projection names (3.6). If the result is not byte-equal to the signed `publicProjectionJson`: **public projection mismatch**.
+
+When step 2 passes, the request text is the one the issuer committed to, and the public projection was built from it by the published rule. A verifier without the request and salt reports the commitment as not opened, and draws no conclusion about the request beyond the projection. The issuer runs step 2 on every verification it performs, before it resolves a key or redeems anything; a projection that passes step 2 also passes step 1.
+
+`tools/verify.mjs` runs step 1 on every `jcs_v3` receipt, and runs step 2 when given `--request <file> --salt <64 hex>`. The file is read as exact text. It exits `8` for an unsupported canonicalization or projection tag, `9` for projection not allowed, and `10` when the supplied request and salt do not open the commitment or do not rebuild the projection.
 
 ## 7. Decision and decider semantics
 
@@ -254,9 +479,9 @@ Founder-veto denials on the execute lane between 2026-08-11 and 2026-08-12: the 
 
 Buyers asked for tamper-evident logs. A signed receipt proves **alteration**: change a byte and the signature fails. It does not prove **omission**: a receipt that was never shown to you leaves no trace in the receipts you were shown. Hash-chaining closes that gap. Each receipt would carry `prev`, the SHA-256 digest of the canonical bytes of the previous receipt in the same tenant stream (or per-gate stream), inside the signed set. A verifier holding a contiguous run can then detect a missing or reordered receipt, and a periodically published checkpoint lets an auditor confirm a stream's head.
 
-`prev` is **reserved** for the next canonicalization version and is not emitted today. Evaluated for this document and deferred, because adding it touches more than this repository can carry:
+`prev` is **reserved** for `jcs_v4` and is not emitted today. `jcs_v3` (sections 3.4 to 3.7) is the receipt-privacy change alone and does not carry it. `prev` was evaluated for this document and deferred, because adding it touches more than this repository can carry:
 
-- A new signed field means `jcs_v3` and a new column on the issuer's receipt row (a schema migration), plus a signer change to read the tenant's previous head under the same transaction that mints the new receipt, plus a decision on stream granularity and checkpoint venue that is an open question for the founder.
+- A new signed field means a new canonicalization version and a new column on the issuer's receipt row (a schema migration), plus a signer change to read the tenant's previous head under the same transaction that mints the new receipt, plus a decision on stream granularity and checkpoint venue that is an open question for the founder.
 - Every verifier, this repository's vectors, and the issuer's own re-canonicalization on verify would change with it.
 
 The issuer's `idemKey` uniqueness per tenant and its append-only row model are not a substitute: they are issuer-side properties a verifier cannot check. Tracked as an issue in this repository; see `VERSIONING.md` for how the field will be introduced.
@@ -341,11 +566,14 @@ That the issuer recorded this outcome for this authorization at `createdAt`, und
 - **Redemption.** The issuer's verify endpoint can redeem an approval atomically once. Redemption state is unsigned issuer metadata.
 - **Idempotency.** A resubmitted execute-lane request with the same `idemKey` returns the existing receipt; a `DENIED` receipt is terminal for its key (kill-switch denials say so in `reasonCodes` with `KILL_SWITCH_DENIAL_TERMINAL`). A changed action under a reused key is refused with a fresh `DENIED` receipt (`APPROVAL_ARTIFACT_MISMATCH`).
 - **Re-approval.** An expired deploy-gate approval can be renewed for the unchanged scope; the renewal is a new receipt with its own id and `DEPLOY_GATE_REAPPROVED` in `reasonCodes`, signed by the renewing decider.
+- **Revocation.** An unused deploy-gate approval (not redeemed, not merged) can be revoked. The revocation is a new `DENIED` receipt (`rcpt_rev_<uuid>`, `resolutionType` `deny`) whose request names the revoked receipt in `metadata.revokedReceiptId` and whose `summary` is the revoker's reason. The revoked receipt is not re-signed.
 
 ## 11. Security considerations
 
-- **Replay.** A valid signature does not prove the receipt is for the action in front of you. Compare `requestJson` and `inputHash` to your own canonical input, and use `idemKey` or the issuer's redemption for one-time execution.
-- **Unsigned metadata.** Anything outside section 3.1 is mutable. Do not decide anything from it.
+- **Replay.** A valid signature does not prove the receipt is for the action in front of you. Compare `requestJson` and `inputHash` to your own canonical input, and use `idemKey` or the issuer's redemption for one-time execution. For `jcs_v3`, a third party compares the projected commit SHA, environment, capability, tool and operation, and the holder of the request opens the commitment; one-time execution rests on the issuer's redemption.
+- **Commitment salt.** A `jcs_v3` salt is as sensitive as the request it opens. With the salt, a guessed request can be confirmed against the commitment. A disclosed salt opens only its own receipt, because every receipt has its own salt.
+- **Projection allowlist.** The projection check (6.7, step 1) is how a third party detects an issuer that published a field its tag does not allow. Verifiers MUST run it and MUST fail closed on a tag they do not know.
+- **Unsigned metadata.** Anything outside the signed set (section 3.1, or 3.4 for `jcs_v3`) is mutable. Do not decide anything from it.
 - **Key compromise.** The issuer holds one production signing key per deployment in environment configuration; its compromise would forge receipts for every tenant until revocation. Verifiers MUST honor `revoked` and SHOULD re-fetch the key set periodically.
 - **Canonicalization drift.** Any change to the bytes breaks every existing signature. Implementers MUST test against `test-vectors/` and the live vector; step 4 of the verify procedure exists to catch drift on the issuer's side too.
 - **Time.** Expiry comparisons depend on the verifier's clock. Treat expiry as information about redemption, not as a signature property.
@@ -364,10 +592,19 @@ That the issuer recorded this outcome for this authorization at `createdAt`, und
 | `approve-human-execute-lane-refund.json`, `approve-human-execute-lane-create-pr.json` | `APPROVED` by a named human on the execute lane, signed at the decision before the action ran (`credentialed`, 15-minute window) | verify |
 | `attestations/attest-succeeded-policy-execute-lane.json`, `attest-failed-human-execute-lane-create-pr.json`, `attest-unknown-human-execute-lane-refund.json` | one execution attestation per outcome, each naming its receipt vector (`receipt_vector`) | verify with `--receipt` (section 9.5) |
 | `attestations/tampered-attest-failed-human-execute-lane-create-pr.json` | the failed attestation rewritten as succeeded after signing, hash recomputed | fails at the signature |
+| `v3/approve-human-deploy-gate-private-repo.json` | `jcs_v3`, deploy-gate approval by a named human on a private repository: the `deploy_gate/v1` projection carries no repository identity | verifies |
+| `v3/approve-human-deploy-gate-public-repo.json` | `jcs_v3`, the second approval under a two-approver rule on a public repository: the projection carries the † paths, and the recorded decisions without user ids | verifies |
+| `v3/approve-human-execute-lane-refund.json` | `jcs_v3`, execute-lane human approval: the `execute/v1` projection carries the intent and action names, never the parameters | verifies |
+| `v3/revoke-human-deploy-gate.json` | `jcs_v3`, the private-repository approval revoked: `revocation/v1`, `DENIED` | verifies, decision `DENIED` |
+| `v3/tampered-approve-human-deploy-gate-private-repo.json` | the projection's commit SHA edited after signing, hash recomputed | fails at the signature |
+| `v3/outside-allowlist-approve-human-execute-lane-refund.json` | validly signed with the test key over a projection that also carries `action.parameters` | signature verifies; fails the projection check (projection not allowed) |
+| `v3/openings/openings.json` | commitment openings: each committed request as exact text in `v3/openings/`, a salt, and the expected result of section 6.7 step 2 | four open; another receipt's salt, a reformatted request and a changed request give request commitment mismatch; the outside-allowlist vector gives public projection mismatch |
 | `live-deploy-gate-approve.json` | a real production receipt captured from the public artifact endpoint on 2026-09-08 | verifies against `live-keys.json` |
 | `keys.json`, `live-keys.json` | the key sets, in the published shape | |
 
-The three generated vectors are produced by `tools/generate-vectors.mjs` from fixed inputs with the repository's test key; CI regenerates them and fails on drift. Their bytes were checked byte for byte against the issuer's own canonicalization code. An implementation claims conformance to this document when it reproduces every expected result above, passes `node --test "test/*.test.mjs"`, and validates each verified payload against `schema/receipt-v2.json` (receipts) or `schema/attestation-v1.json` (attestations).
+The three generated vectors are produced by `tools/generate-vectors.mjs` from fixed inputs with the repository's test key; CI regenerates them and fails on drift. Their bytes were checked byte for byte against the issuer's own canonicalization code. An implementation claims conformance to this document when it reproduces every expected result above, passes `node --test "test/*.test.mjs"`, and validates each verified payload against `schema/receipt-v2.json` (`jcs_v2` receipts), `schema/receipt-v3.json` (`jcs_v3` receipts) or `schema/attestation-v1.json` (attestations).
+
+The `jcs_v3` vectors use the same key, with fixed published salts in place of the issuer's random ones. On 2026-10-06 the issuer's own signer (`permission-protocol/app` commit `c655e8d5`, with `jcs_v3` switched on) signed the same inputs with the same key and salts. It produced the same canonical bytes, digests, signatures, commitments and projections for every valid `jcs_v3` vector. Its commitment check agreed with every case in `v3/openings/openings.json`. Its projection builder agreed byte for byte with `tools/public-projection.mjs` on 3,536 requests under all three tags: hand-written edge cases, the vector requests, and seeded random requests shaped along the allowlist paths. Every projection it built passed the projection check of section 6.7, and its exported allowlists equal the tables in section 3.7.
 
 ## 13. Relationship to other documents
 
@@ -375,4 +612,4 @@ The three generated vectors are produced by `tools/generate-vectors.mjs` from fi
 - `VERIFY.md`: the nine-line verification and the online paths.
 - `MAPPINGS.md`: which fields back which controls.
 - `VERSIONING.md`: how this format changes.
-- In `permission-protocol/app`: `docs/receipt-standard.md` (the SDK-facing receipt object and status mapping), `permission-protocol-sdk/spec/hashable-payload-v1.md` (`inputHash` on the execute lane), `src/lib/permission-protocol-v1/signing/canonicalize.ts` (the frozen field lists this document transcribes), `src/lib/permission-router/execution-attestation.ts` (`attest_v1`), `docs/adr/0003-authorization-before-execution.md` (why authorization precedes execution and the outcome is separate).
+- In `permission-protocol/app`: `docs/receipt-standard.md` (the SDK-facing receipt object and status mapping), `permission-protocol-sdk/spec/hashable-payload-v1.md` (`inputHash` on the execute lane), `src/lib/permission-protocol-v1/signing/canonicalize.ts` (the frozen field lists this document transcribes), `src/lib/permission-protocol-v1/signing/public-projection.ts` and `request-commitment.ts` (the `jcs_v3` projection allowlists, build rule and commitment), `docs/trust/design-notes/F2-RECEIPT-V3-PUBLIC-PROJECTION.md` (why `jcs_v3` exists and what it leaves public), `src/lib/permission-router/execution-attestation.ts` (`attest_v1`), `docs/adr/0003-authorization-before-execution.md` (why authorization precedes execution and the outcome is separate).

@@ -27,6 +27,23 @@ jobs:
           if node tools/verify.mjs test-vectors/attestations/tampered-attest-failed-human-execute-lane-create-pr.json test-vectors/keys.json --receipt test-vectors/approve-human-execute-lane-create-pr.json; then
             echo "tampered attestation verified; that is a bug" && exit 1
           fi
+      - name: Verify one jcs_v3 receipt and open its commitment through the reference CLI
+        run: |
+          salt="$(node -p 'require("./test-vectors/v3/openings/openings.json").cases.find((c) => c.receipt_vector === "approve-human-deploy-gate-private-repo.json" && c.expected === "opened").salt_hex')"
+          node tools/verify.mjs test-vectors/v3/approve-human-deploy-gate-private-repo.json test-vectors/keys.json \
+            --request test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json --salt "$salt"
+      - name: The tampered jcs_v3 vector must fail at the signature
+        run: |
+          if node tools/verify.mjs test-vectors/v3/tampered-approve-human-deploy-gate-private-repo.json test-vectors/keys.json; then
+            echo "tampered v3 vector verified; that is a bug" && exit 1
+          fi
+      - name: A signed jcs_v3 projection outside its allowlist must fail the projection check
+        run: |
+          code=0
+          node tools/verify.mjs test-vectors/v3/outside-allowlist-approve-human-execute-lane-refund.json test-vectors/keys.json || code=$?
+          if [ "$code" -ne 9 ]; then
+            echo "expected exit 9 (projection not allowed), got $code" && exit 1
+          fi
       - name: Vectors are regenerated deterministically from their inputs
         run: |
           node tools/generate-vectors.mjs --check

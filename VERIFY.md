@@ -25,12 +25,26 @@ Or use the reference verifier in this repository, which also re-canonicalizes th
 node tools/verify.mjs artifact.json keys.json
 ```
 
-Exit codes: `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed, `4` payload bytes disagree with their hash or their own canonical form.
+Exit codes: `0` verified, `1` signature invalid, `2` key not found or revoked, `3` malformed, `4` payload bytes disagree with their hash or their own canonical form, `8` a canonicalization or projection tag this verifier does not support (unverifiable here, not tampered), `9` a `jcs_v3` projection outside its allowlist, `10` a `jcs_v3` commitment that the supplied request and salt do not open.
+
+## Receipt format v3 (`jcs_v3`)
+
+A `jcs_v3` receipt (`SPEC.md` sections 3.4 to 3.7) signs a salted commitment to its request and a public projection of it, instead of the request. The nine lines above verify its signature unchanged. The reference verifier also checks that the projection stays within its tag's allowlist, which every verifier must do (`SPEC.md` section 6.7).
+
+The workspace that owns the receipt holds the request text and its 32-byte salt, and can open the commitment:
+
+```bash
+node tools/verify.mjs artifact.json keys.json --request request.json --salt SALT_HEX
+```
+
+`SALT_HEX` is the salt as 64 hex characters. `request.json` must be the exact text the issuer committed to. The commitment covers it byte for byte, so a reformatted copy does not open it. An opening proves that the receipt was signed over exactly that request, and that its public projection was built from it.
 
 ## What the check proves
 
 - The bytes in `payload_bytes_b64` were signed by the holder of the private key for `key_id`, and have not changed since.
 - The decision (`status`), the decider (`deciderId`, `deciderDisplay`, `deciderAuthMethod`, `attributionConfidence`), the policy version, the action snapshot, and the timestamps inside those bytes are what the issuer committed to.
+
+For a `jcs_v3` receipt, the action snapshot in the bytes is the public projection plus the commitment. The rest of the request is proved only to whoever opens the commitment.
 
 It does not prove the action succeeded, that the decision was wise, or that the receipt is still valid for one-time redemption (`expiresAt` and redemption state are the issuer's concern, and the signature remains valid evidence after both).
 

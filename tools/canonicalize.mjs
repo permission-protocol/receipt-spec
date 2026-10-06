@@ -1,6 +1,6 @@
-// Reference implementation of the jcs_v1 and jcs_v2 canonicalization described in
-// SPEC.md section 4. Dependency-free. Byte-for-byte equivalent to the hosted
-// service's canonicalizeReceiptForVersion (app repo,
+// Reference implementation of the jcs_v1, jcs_v2 and jcs_v3 canonicalization
+// described in SPEC.md section 4. Dependency-free. Byte-for-byte equivalent to
+// the hosted service's canonicalizeReceiptForVersion (app repo,
 // src/lib/permission-protocol-v1/signing/canonicalize.ts); tools/generate-vectors.mjs
 // cross-checks that equivalence when the app checkout is available.
 import { createHash } from "node:crypto";
@@ -36,10 +36,56 @@ export const SIGNED_FIELDS_V2 = [
   "scope",
 ];
 
+// jcs_v3 (SPEC.md section 3.4): written out in full, not derived from v2, so
+// the frozen contents are visible. Removed from v2: companyId, idemKey,
+// requestJson, inputHash. Added: requestCommitment (section 3.5) and
+// publicProjectionJson (section 3.6). Order is irrelevant to the bytes (keys
+// are sorted); it matches the issuer's list.
+export const SIGNED_FIELDS_V3 = [
+  "id",
+  "agentId",
+  "runId",
+  "requestCommitment",
+  "publicProjectionJson",
+  "status",
+  "riskTier",
+  "policyVersion",
+  "reasonCodes",
+  "summary",
+  "receiptVersion",
+  "canonicalization",
+  "signatureAlg",
+  "signatureKeyId",
+  "expiresAt",
+  "createdAt",
+  "deciderId",
+  "deciderDisplay",
+  "deciderAuthMethod",
+  "resolutionType",
+  "attributionConfidence",
+  "scope",
+];
+
+/**
+ * A canonicalization value this implementation does not define. Typed so a
+ * verifier reports it as unverifiable here (CANONICALIZATION_UNSUPPORTED),
+ * never as tampered, and never re-canonicalizes the bytes under another
+ * version's field list.
+ */
+export class CanonicalizationUnsupportedError extends Error {
+  constructor(canonicalization) {
+    super(`unsupported canonicalization: ${canonicalization}`);
+    this.name = "CanonicalizationUnsupportedError";
+    this.code = "CANONICALIZATION_UNSUPPORTED";
+    this.canonicalization = canonicalization;
+  }
+}
+
 export function signedFieldsFor(canonicalization) {
+  if (canonicalization === "jcs_v3") return SIGNED_FIELDS_V3;
   if (canonicalization === "jcs_v2") return SIGNED_FIELDS_V2;
   if (canonicalization === "jcs_v1") return SIGNED_FIELDS_V1;
-  throw new Error(`unsupported canonicalization: ${canonicalization}`);
+  throw new CanonicalizationUnsupportedError(canonicalization);
 }
 
 function sortKeys(value) {
@@ -73,6 +119,21 @@ export function canonicalBytes(receipt, canonicalization) {
 /** The 32-byte Ed25519 message: SHA-256 over the canonical bytes. */
 export function signingDigest(bytes) {
   return createHash("sha256").update(bytes).digest();
+}
+
+/** jcs_v3 request commitment salts are exactly this many bytes. */
+export const REQUEST_COMMITMENT_SALT_BYTES = 32;
+
+/**
+ * jcs_v3 requestCommitment (SPEC.md section 3.5):
+ * "sha256:" + lowercase hex SHA-256( salt || UTF-8(requestJson) ), over the
+ * exact request text, never a re-serialization of it.
+ */
+export function requestCommitment(salt, requestJson) {
+  if (salt.length !== REQUEST_COMMITMENT_SALT_BYTES) {
+    throw new RangeError(`a request commitment salt is exactly ${REQUEST_COMMITMENT_SALT_BYTES} bytes (got ${salt.length})`);
+  }
+  return `sha256:${createHash("sha256").update(salt).update(Buffer.from(requestJson, "utf8")).digest("hex")}`;
 }
 
 // ---------------------------------------------------------------------------

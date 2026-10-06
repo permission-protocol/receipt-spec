@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/permission-protocol/receipt-spec/schema/artifact.json",
   "title": "Permission Protocol receipt artifact envelope",
-  "description": "The portable form of a receipt: the exact signed bytes, the signature, the digest, and the key identifier. Served publicly at https://app.permissionprotocol.com/r/<receipt_id>.json (signature-intact receipts only) and, tenant-authenticated, at GET /api/v1/receipts/<receipt_id>/artifact. Decode payload_bytes_b64 to obtain the object described by receipt-v2.json.",
+  "description": "The portable form of a receipt: the exact signed bytes, the signature, the digest, and the key identifier. Served publicly at https://app.permissionprotocol.com/r/<receipt_id>.json (signature-intact receipts only) and, tenant-authenticated, at GET /api/v1/receipts/<receipt_id>/artifact. Decode payload_bytes_b64 to obtain the object described by receipt-v2.json (canonicalization jcs_v2) or receipt-v3.json (jcs_v3). The envelope shape is the same for every receipt version.",
   "type": "object",
   "required": ["artifact"],
   "properties": {
@@ -12,8 +12,8 @@
       "properties": {
         "receipt_id": { "type": "string", "minLength": 1 },
         "status": { "type": "string" },
-        "receipt_version": { "type": "integer" },
-        "canonicalization": { "type": "string" },
+        "receipt_version": { "type": "integer", "description": "Unsigned convenience copy of the signed receiptVersion (2 for jcs_v2, 3 for jcs_v3)." },
+        "canonicalization": { "type": "string", "description": "Unsigned convenience copy of the signed canonicalization. Verifiers dispatch on the value inside the signed bytes." },
         "key_id": { "type": "string", "minLength": 1 },
         "alg": { "const": "ed25519" },
         "signed_payload_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Lowercase hex SHA-256 of the decoded payload bytes." },

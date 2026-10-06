@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/permission-protocol/receipt-spec/schema/receipt-v3.json",
+  "title": "Permission Protocol receipt, signed payload (receiptVersion 3, jcs_v3)",
+  "description": "The JSON object obtained by decoding a jcs_v3 receipt's signed payload bytes (artifact.payload_bytes_b64). This is exactly what the Ed25519 signature covers, after SHA-256. Compared with jcs_v2 it drops companyId, idemKey, requestJson and inputHash and adds requestCommitment and publicProjectionJson (SPEC.md sections 3.4 to 3.6). Fields whose stored value is null are absent, never present as null. The contents of publicProjectionJson are checked against its tag's allowlist by SPEC.md section 6.7, which a schema cannot express.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "agentId",
+    "requestCommitment",
+    "publicProjectionJson",
+    "status",
+    "deciderId",
+    "deciderDisplay",
+    "attributionConfidence",
+    "scope",
+    "receiptVersion",
+    "canonicalization",
+    "signatureAlg",
+    "signatureKeyId",
+    "expiresAt",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Receipt identifier, unique per issuer. Deploy-gate receipts use rcpt_dg_<requestId>...; revocations rcpt_rev_<uuid>; execute-lane receipts the row's generated id."
+    },
+    "agentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The acting agent as supplied by the caller. github-actions on the deploy-gate lane, permission-protocol on revocations."
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional run or session identifier supplied by the caller. Absent when not supplied."
+    },
+    "requestCommitment": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "sha256: plus lowercase hex SHA-256(salt || UTF-8(requestJson)) over the exact private request text and a 32-byte per-receipt salt (SPEC.md section 3.5). Hiding without the salt; binding to exactly one request."
+    },
+    "publicProjectionJson": {
+      "type": "string",
+      "minLength": 2,
+      "description": "The issuer-built public projection of the request, as canonical JSON text (recursively sorted keys, no whitespace), carrying its allowlist tag in the top-level projection key: deploy_gate/v1, execute/v1 or revocation/v1 (SPEC.md sections 3.6 and 3.7). A string, not an object, so its bytes cannot drift with a re-serialization."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["APPROVED", "DENIED"],
+      "description": "The decision. Revocations are signed DENIED."
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": ["A_READONLY", "B_DRAFT", "C_EXECUTE_WITH_APPROVAL", "D_PROHIBITED"],
+      "description": "Execute-lane risk tier. Absent on deploy-gate and revocation receipts."
+    },
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The policy version that governed the decision. Absent on revocations and kill-switch denials."
+    },
+    "reasonCodes": {
+      "type": "string",
+      "minLength": 2,
+      "description": "A JSON array of reason-code strings, serialized as text. Order is preserved. Parse before use."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary of the decision. Signed and public in jcs_v3: it can carry a decider's typed reason, such as a revocation reason."
+    },
+    "deciderId": {
+      "type": "string",
+      "pattern": "^(user:.+|api_key:.+|demo:.+|system/pp-engine|system/pp-policy-engine|system/pp-permission-router|role/human-approver|role/founder|role/api-key-approver)$",
+      "description": "Stable identifier of who decided (SPEC.md section 7.2). Every jcs_v3 receipt signs a decider."
+    },
+    "deciderDisplay": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-facing label for the decider: a GitHub login for a session signer, a fixed engine label for policy decisions, a role-class label for role/* deciders."
+    },
+    "deciderAuthMethod": {
+      "type": "string",
+      "enum": ["session", "session_stepup_webauthn", "session_reauth", "api_key", "anonymous_demo", "policy"],
+      "description": "Credential lane of the decider. Absent when the mint path recorded null."
+    },
+    "resolutionType": {
+      "type": "string",
+      "enum": ["allow_once", "allow_always", "deny"],
+      "description": "How a hold was resolved. Absent on policy-engine decisions on the execute lane."
+    },
+    "attributionConfidence": {
+      "type": "string",
+      "enum": ["credentialed", "heuristic", "unattributed"],
+      "description": "How strongly the decision is tied to the decider (SPEC.md section 7.3)."
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["production", "demo"],
+      "description": "A demo receipt is signed under a distinct demo key and can never pass as production evidence."
+    },
+    "receiptVersion": {
+      "const": 3,
+      "description": "Integer 3."
+    },
+    "canonicalization": {
+      "const": "jcs_v3"
+    },
+    "signatureAlg": {
+      "const": "ed25519"
+    },
+    "signatureKeyId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifies the issuer key. Resolve it through the published key set before verifying."
+    },
+    "expiresAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "description": "ISO 8601 UTC with milliseconds. Bounds one-time redemption of an approval; the signature stays valid evidence after expiry."
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "description": "ISO 8601 UTC with milliseconds. When the receipt row was created."
+    }
+  }
+}
