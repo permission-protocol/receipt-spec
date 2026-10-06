@@ -123,7 +123,12 @@ requestCommitment = "sha256:" + lowercase_hex( SHA-256( salt || UTF-8(requestJso
 - **Binding** rests on the collision resistance of SHA-256: the signature commits the issuer to exactly one request text. **Hiding** rests on the salt: without it the commitment confirms nothing about a guessed request, which is the property `inputHash` lacked.
 - **One salt per receipt**, not per workspace. Two receipts over the same request get unlinkable commitments, and the workspace can open one receipt for an auditor without opening any other.
 
-The issuer opens the commitment on every verification it performs. The workspace that owns the receipt receives the request text and its salt through the issuer's authenticated surfaces; this document does not specify the envelope fields those surfaces use. Anyone the workspace gives one receipt's request and salt can open that receipt (section 6.7, step 2).
+The issuer opens the commitment on every verification it performs. The workspace that owns the receipt receives the request text and its salt through the issuer's authenticated surfaces, under two fields on each `jcs_v3` receipt they carry:
+
+- **`request_json`**: the stored request text, byte for byte (a JSON string whose value is that text).
+- **`request_commitment_salt_b64`**: the 32-byte salt, standard base64; `null` when the issuer no longer holds it, in which case the commitment cannot be opened.
+
+These fields appear only on authenticated owner surfaces (the owner artifact, evidence packages, exports), never on the public artifact. On v1 and v2 receipts they are absent or `null`. Anyone the workspace gives one receipt's request and salt can open that receipt (section 6.7, step 2).
 
 ### 3.6 `publicProjectionJson`
 

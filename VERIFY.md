@@ -37,7 +37,7 @@ The workspace that owns the receipt holds the request text and its 32-byte salt,
 node tools/verify.mjs artifact.json keys.json --request request.json --salt SALT_HEX
 ```
 
-`SALT_HEX` is the salt as 64 hex characters. `request.json` must be the exact text the issuer committed to. The commitment covers it byte for byte, so a reformatted copy does not open it. An opening proves that the receipt was signed over exactly that request, and that its public projection was built from it.
+`SALT_HEX` is the salt as 64 hex characters. The owner artifact and evidence package carry both as `request_json` and `request_commitment_salt_b64` (`SPEC.md` 3.5): write `request_json`'s string value to `request.json` unchanged, and convert the salt with `node -e "console.log(Buffer.from(process.argv[1], 'base64').toString('hex'))" "$SALT_B64"`. `request.json` must be the exact text the issuer committed to. The commitment covers it byte for byte, so a reformatted copy does not open it. An opening proves that the receipt was signed over exactly that request, and that its public projection was built from it.
 
 ## What the check proves
 
