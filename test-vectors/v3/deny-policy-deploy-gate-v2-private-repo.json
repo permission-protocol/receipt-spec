@@ -1,0 +1,90 @@
+{
+  "description": "jcs_v3 under deploy_gate/v2. DENIED by the policy engine (system/pp-engine) on the webhook, for a private repository, under PP's built-in classifier rule (appealable: final false). The projection carries the denial's category, decision class, finality and requireNewRequest, and the decision outcome, but neither the decision's rule nor metadata.denial.ruleId (‡). The signed reasonCodes are [\"DEPLOY_GATE_DENIED\"], without the rule id a public repository's denial carries as its second code. A verifier reports the rule as withheld, never the signed policyVersion (deploy-gate-v1) in its place. The engine's reason is the committed summary.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/app/api/github-app/webhook/handler.ts (createPolicyDenialReceipt) with PP_RECEIPT_V3=on; deploy-gate/receipt-payload.ts ruleReasonCodes",
+  "artifact": {
+    "receipt_id": "rcpt_dg_vec16v2policydeny0000001_denial_policy-1",
+    "status": "DENIED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "829f6609aa51ff1cdec4bd0bd388e57f629838e3f06980e3477c285128dd0a3d",
+    "signature_b64": "yvDWTkA4PXicpe7eNZDnNXr7KfT0JqLSn/sx9I3lVVGEG31ve4ar/4XFVfpkZ+MGKpp9r1HSZ0eP3fk9baScAQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoic3lzdGVtL3BwLWVuZ2luZSIsImF0dHJpYnV0aW9uQ29uZmlkZW5jZSI6ImNyZWRlbnRpYWxlZCIsImNhbm9uaWNhbGl6YXRpb24iOiJqY3NfdjMiLCJjcmVhdGVkQXQiOiIyMDI2LTEwLTA4VDE2OjAwOjAwLjAwMFoiLCJkZWNpZGVyQXV0aE1ldGhvZCI6InBvbGljeSIsImRlY2lkZXJEaXNwbGF5IjoiUGVybWlzc2lvbiBQcm90b2NvbCBwb2xpY3kgZW5naW5lIiwiZGVjaWRlcklkIjoic3lzdGVtL3BwLWVuZ2luZSIsImV4cGlyZXNBdCI6IjIwMjctMTAtMDhUMTY6MDA6MDAuMDAwWiIsImlkIjoicmNwdF9kZ192ZWMxNnYycG9saWN5ZGVueTAwMDAwMDFfZGVuaWFsX3BvbGljeS0xIiwicG9saWN5VmVyc2lvbiI6ImRlcGxveS1nYXRlLXYxIiwicHVibGljUHJvamVjdGlvbkpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcImRlcGxveVwiLFwidG9vbFwiOlwiZ2l0aHViLWFjdGlvbnNcIn0sXCJjb250ZXh0XCI6e1wiZW52aXJvbm1lbnRcIjpcInByb2R1Y3Rpb25cIixcInJldmVyc2liaWxpdHlcIjpcIlJFVkVSU0lCTEVcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwiZGVwbG95bWVudFwiLFwibmFtZVwiOlwiZGVwbG95X2dhdGVfZGVuaWFsXCJ9LFwibWV0YWRhdGFcIjp7XCJkZW5pYWxcIjp7XCJjYXRlZ29yeVwiOlwicG9saWN5XCIsXCJkZWNpc2lvbkNsYXNzXCI6XCJjbGFzc2lmaWVyXCIsXCJmaW5hbFwiOmZhbHNlLFwicmVxdWlyZU5ld1JlcXVlc3RcIjp0cnVlfSxcImRlcGxveUdhdGVSZXF1ZXN0SWRcIjpcInZlYzE2djJwb2xpY3lkZW55MDAwMDAwMVwifSxcInBvbGljeVwiOntcImF1dGhvcml6YXRpb25CaW5kaW5nXCI6e1wiY29tbWl0U2hhXCI6XCI2ZDhmMGIyZDRmNmE4YzBlMmI0ZDZmOGEwYzJlNGI2ZDhmMGEyYzRlXCIsXCJwYXRoXCI6XCIucGVybWlzc2lvbi1wcm90b2NvbC55bWxcIixcInJ1bGVzSGFzaFwiOlwiYjNkNWY3YTljMWUzYjVkN2Y5YTFjM2U1YjdkOWYxYTNjNWU3YjlkMWYzYTVjN2U5YjFkM2Y1YTdjOWUxYjNkNVwiLFwidmVyc2lvblwiOjF9LFwiZGVjaXNpb25cIjp7XCJtYXRjaGVkSW5wdXRzXCI6e1wiYW5hbHlzaXNDb21wbGV0ZVwiOnRydWUsXCJjaGFuZ2VDbGFzc1wiOlwidW5jbGFzc2lmaWVkXCJ9LFwib3V0Y29tZVwiOlwiZGVuaWVkXCJ9LFwiZXhwaXJlc0F0XCI6XCIyMDI3LTEwLTA4VDE2OjAwOjAwLjAwMFpcIn0sXCJwcm9qZWN0aW9uXCI6XCJkZXBsb3lfZ2F0ZS92MlwiLFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCIyZTRiNmQ4ZjBhMWMzZTViN2Q5ZjJhNGM2ZThiMGQxZjNhNWM3ZTliXCIsXCJlbnZcIjpcInByb2R1Y3Rpb25cIixcInZpc2liaWxpdHlcIjpcInByaXZhdGVcIn19IiwicmVhc29uQ29kZXMiOiJbXCJERVBMT1lfR0FURV9ERU5JRURcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MywicmVxdWVzdENvbW1pdG1lbnQiOiJzaGEyNTY6OWRjOTBmNzQzZGUwMjdjMzQ5Yjk0NDhjYTYwYWJiODQ1ZWExODhiOWZlMThkMTdiY2JjMGRiMGNiMzcxODViOCIsInJlc29sdXRpb25UeXBlIjoiZGVueSIsInJ1bklkIjoicnVuXzE4NjIzMzEwOTg0Iiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiREVOSUVEIn0=",
+    "issued_at": "2026-10-08T16:00:00.000Z",
+    "expires_at": "2027-10-08T16:00:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
+  "receipt": {
+    "agentId": "system/pp-engine",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-08T16:00:00.000Z",
+    "deciderAuthMethod": "policy",
+    "deciderDisplay": "Permission Protocol policy engine",
+    "deciderId": "system/pp-engine",
+    "expiresAt": "2027-10-08T16:00:00.000Z",
+    "id": "rcpt_dg_vec16v2policydeny0000001_denial_policy-1",
+    "policyVersion": "deploy-gate-v1",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"deploy\",\"tool\":\"github-actions\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"REVERSIBLE\"},\"intent\":{\"category\":\"deployment\",\"name\":\"deploy_gate_denial\"},\"metadata\":{\"denial\":{\"category\":\"policy\",\"decisionClass\":\"classifier\",\"final\":false,\"requireNewRequest\":true},\"deployGateRequestId\":\"vec16v2policydeny0000001\"},\"policy\":{\"authorizationBinding\":{\"commitSha\":\"6d8f0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e\",\"path\":\".permission-protocol.yml\",\"rulesHash\":\"b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5\",\"version\":1},\"decision\":{\"matchedInputs\":{\"analysisComplete\":true,\"changeClass\":\"unclassified\"},\"outcome\":\"denied\"},\"expiresAt\":\"2027-10-08T16:00:00.000Z\"},\"projection\":\"deploy_gate/v2\",\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b\",\"env\":\"production\",\"visibility\":\"private\"}}",
+    "reasonCodes": "[\"DEPLOY_GATE_DENIED\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:9dc90f743de027c349b9448ca60abb845ea188b9fe18d17bcbc0db0cb37185b8",
+    "resolutionType": "deny",
+    "runId": "run_18623310984",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "DENIED"
+  },
+  "expected": "verified",
+  "projection": {
+    "action": {
+      "operation": "deploy",
+      "tool": "github-actions"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "REVERSIBLE"
+    },
+    "intent": {
+      "category": "deployment",
+      "name": "deploy_gate_denial"
+    },
+    "metadata": {
+      "denial": {
+        "category": "policy",
+        "decisionClass": "classifier",
+        "final": false,
+        "requireNewRequest": true
+      },
+      "deployGateRequestId": "vec16v2policydeny0000001"
+    },
+    "policy": {
+      "authorizationBinding": {
+        "commitSha": "6d8f0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e",
+        "path": ".permission-protocol.yml",
+        "rulesHash": "b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5",
+        "version": 1
+      },
+      "decision": {
+        "matchedInputs": {
+          "analysisComplete": true,
+          "changeClass": "unclassified"
+        },
+        "outcome": "denied"
+      },
+      "expiresAt": "2027-10-08T16:00:00.000Z"
+    },
+    "projection": "deploy_gate/v2",
+    "scope": {
+      "capability": "deploy:production",
+      "commitSha": "2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b",
+      "env": "production",
+      "visibility": "private"
+    }
+  }
+}

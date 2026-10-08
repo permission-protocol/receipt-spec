@@ -46,7 +46,7 @@ import {
   signingDigest,
 } from "./canonicalize.mjs";
 import { checkDeciderProof } from "./decider-proof.mjs";
-import { buildPublicProjection, checkPublicProjection, readProjectionTag } from "./public-projection.mjs";
+import { buildPublicProjection, checkPublicProjection, readProjectionTag, tagWithholdsPolicyIdentity } from "./public-projection.mjs";
 
 /**
  * Exit code per failure code (SPEC.md section 6.2). Receipts: 1 to 4 and 8 to
@@ -105,10 +105,17 @@ export function publicKeyFromRaw(publicKeyB64) {
  * the decider proof check and the commitment form check (SPEC.md section 6.7,
  * steps 1 and 2) and, when options.opening = { requestJson, salt, summary?,
  * binding? } is given, the commitment opening (step 3); the result then
- * carries `projection`, `projectionTag`, `commitmentOpened` and, once opened,
- * `committedSummary` and `committedBinding`. `opening.summary` is the summary
- * the issuer states for the receipt: a string, null for "none", or undefined
- * when the caller holds none (then only the committed one is reported).
+ * carries `projection`, `projectionTag`, `commitmentOpened`, `rule` (the
+ * matched rule the projection publishes, `<ruleId>@<ruleVersion>`, or null),
+ * `ruleWithheld` (the tag withholds the policy rule identity, ‡, and the
+ * projection does not record the repository as public) and, once opened,
+ * `committedSummary`, `committedBinding` and `committedRule` (for a withheld
+ * rule, the one the opened request records, or null; null when the rule is
+ * not withheld). A withheld rule is never reported as `policyVersion`: the
+ * policy version names the policy, not the rule that matched.
+ * `opening.summary` is the summary the issuer states for the receipt: a
+ * string, null for "none", or undefined when the caller holds none (then only
+ * the committed one is reported).
  * `opening.binding` is the companyId, idemKey and inputHash the issuer states
  * for it, any subset, or undefined when the caller holds none.
  */
@@ -201,14 +208,69 @@ export function verifyArtifact(envelope, keySet, options = {}) {
   if (!checked.ok) return fail(EXIT_CODES[checked.code], checked.code, checked.message);
   const proofProblem = checkDeciderProof(payload.deciderAuthMethod, payload.deciderProof);
   if (proofProblem) return fail(EXIT_CODES[proofProblem.code], proofProblem.code, proofProblem.message);
-  const v3 = { ...result, projection: checked.projection, projectionTag: checked.tag, deciderProof: payload.deciderProof ?? null, commitmentOpened: false };
+  const v3 = {
+    ...result,
+    projection: checked.projection,
+    projectionTag: checked.tag,
+    rule: ruleOf(checked.projection, { decisionOnly: true }),
+    ruleWithheld: ruleWithheldFrom(checked.tag, checked.projection),
+    deciderProof: payload.deciderProof ?? null,
+    commitmentOpened: false,
+  };
   if (!options.opening) return v3;
   // Step 3, the holder of the request and its salt.
   const { requestJson, salt, summary, binding } = options.opening;
   const problem = openRequestCommitment(payload, requestJson, salt, { summary, binding });
   if (problem) return fail(EXIT_CODES[problem.code], problem.code, problem.message);
   const committed = JSON.parse(requestJson);
-  return { ...v3, commitmentOpened: true, committedSummary: committedSummaryOf(requestJson), committedBinding: { ...committed[RECEIPT_BINDING_REQUEST_KEY] } };
+  return {
+    ...v3,
+    commitmentOpened: true,
+    committedSummary: committedSummaryOf(requestJson),
+    committedBinding: { ...committed[RECEIPT_BINDING_REQUEST_KEY] },
+    committedRule: v3.ruleWithheld ? ruleOf(committed) : null,
+  };
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Whether a jcs_v3 projection withholds the matched policy rule (‡,
+ * deploy_gate/v2 and later): its tag withholds it, and the projection does not
+ * record scope.visibility "public" (SPEC.md section 3.6, step 3).
+ */
+export function ruleWithheldFrom(tag, projection) {
+  if (!tagWithholdsPolicyIdentity(tag)) return false;
+  return !(isPlainObject(projection?.scope) && projection.scope.visibility === "public");
+}
+
+/**
+ * The matched rule a request (or a projection) records, as
+ * `<ruleId>@<ruleVersion>`: the decision's; else, unless `decisionOnly`, an
+ * override's (`<ruleId>@<ruleVersion>`, or the id alone) or a denial's id.
+ * Null when it records none. The same reading as the issuer's npm verifier.
+ */
+export function ruleOf(request, { decisionOnly = false } = {}) {
+  const decision = request?.policy?.decision;
+  if (typeof decision?.ruleId === "string" && typeof decision?.ruleVersion === "string") return `${decision.ruleId}@${decision.ruleVersion}`;
+  if (decisionOnly) return null;
+  const override = request?.metadata?.override;
+  if (typeof override?.ruleId === "string") return typeof override.ruleVersion === "string" ? `${override.ruleId}@${override.ruleVersion}` : override.ruleId;
+  const denial = request?.metadata?.denial;
+  return typeof denial?.ruleId === "string" ? denial.ruleId : null;
+}
+
+/** The report line for a withheld rule (SPEC.md section 6.7, "Reporting a withheld rule"). */
+export function describeWithheldRule(result) {
+  const why = result.projection?.scope?.visibility === "private" ? "private repository" : "visibility not recorded, so treated as private";
+  const opened = result.commitmentOpened
+    ? result.committedRule
+      ? `; the opened request commitment records ${result.committedRule}`
+      : "; the opened request commitment records no rule"
+    : "; opening the request commitment shows it";
+  return `withheld (${why}): the signed projection carries no policy rule id or version${opened}`;
 }
 
 /** The summary an opened request commits (receiptSummary), or null when it commits none. */
@@ -504,6 +566,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`policy: ${result.payload.policyVersion ?? "none"}`);
   if (result.projectionTag) {
     console.log(`projection: ${result.projectionTag}, within its allowlist`);
+    // A withheld rule is reported as withheld, never as the policy version.
+    if (result.rule) console.log(`rule: ${result.rule}`);
+    else if (result.ruleWithheld) console.log(`rule: ${describeWithheldRule(result)}`);
     console.log(
       result.deciderProof
         ? `decider proof: ${result.deciderProof.method}, consistent with ${result.payload.deciderAuthMethod}`

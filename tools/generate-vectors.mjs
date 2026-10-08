@@ -73,6 +73,21 @@
 //      commitment to a request that carries the summary but no receiptBinding,
 //      as no issuer's mint writes it. A third party cannot tell (it verifies);
 //      the opening fails (RECEIPT_BINDING_MISMATCH).
+//   The deploy-gate lane signs deploy_gate/v2 (SPEC.md section 3.7). The two
+//   deploy-gate approvals above are frozen history under deploy_gate/v1 and
+//   name that tag; these sign the lane's tag:
+//   v3/approve-human-deploy-gate-v2-private-repo: a customer protected-path
+//      rule holds a change on a private repository; a human approves after a
+//      passkey step-up. The projection carries neither the repository identity
+//      (†) nor the matched rule's id and version (‡).
+//   v3/approve-human-deploy-gate-v2-public-repo: a public repository's
+//      approval over a plain session; the projection carries † and ‡.
+//   v3/deny-policy-deploy-gate-v2-private-repo: the policy engine denies a
+//      change on the private repository; no rule in the projection, and the
+//      signed reasonCodes carry the code alone.
+//   v3/published-rule-approve-human-deploy-gate-v2-private-repo: validly
+//      signed over the private approval's projection with the rule put back:
+//      a verifier rejects it (PROJECTION_NOT_ALLOWED).
 //   v3/openings/: the private side, which only test vectors publish: each
 //      committed request as its exact text, and openings.json, the commitment
 //      openings with their salts, the summary and binding values stated beside
@@ -571,11 +586,15 @@ const RP_ORIGIN = "https://app.permissionprotocol.com";
  * bindDeployGatePolicy's authorizationBinding (app authorization-binding.ts)
  * and, for a multi-approver rule, the approve route's policyAuthorization,
  * stored as canonical text (requestJsonForReceiptSigning). Finding excerpts
- * are already null, as the builder strips them.
+ * are already null, as the builder strips them. A policy denial (`denial`
+ * given) is the builder's DENIED shape: the denial intent, and the denial's
+ * attribution under metadata.denial.
  */
-function deployGateRequestJsonV3({ requestId, expiresAtIso, scope, policyDecision, authorizationBinding, policyAuthorization, enrichmentSnapshot }) {
+function deployGateRequestJsonV3({ requestId, expiresAtIso, scope, policyDecision, authorizationBinding, policyAuthorization, enrichmentSnapshot, denial }) {
   return canonicalJson({
-    intent: { name: "deploy_gate_approval", summary: "Deploy gate authorization approved", category: "deployment" },
+    intent: denial
+      ? { name: "deploy_gate_denial", summary: "Deploy gate authorization denied", category: "deployment" }
+      : { name: "deploy_gate_approval", summary: "Deploy gate authorization approved", category: "deployment" },
     action: { tool: "github-actions", operation: "deploy" },
     context: { environment: scope.env, reversibility: "REVERSIBLE" },
     scope: {
@@ -588,7 +607,7 @@ function deployGateRequestJsonV3({ requestId, expiresAtIso, scope, policyDecisio
       artifact_digest: scope.artifactDigest ?? null,
       visibility: scope.visibility,
     },
-    metadata: { deployGateRequestId: requestId },
+    metadata: { deployGateRequestId: requestId, ...(denial ? { denial } : {}) },
     policy: { expiresAt: expiresAtIso, decision: policyDecision, authorizationBinding },
     ...(policyAuthorization ? { policyAuthorization } : {}),
     enrichmentSnapshot,
@@ -674,6 +693,9 @@ const v3ApprovePrivate = {
   inputHash: v3PrivateScopeHash, // stored, not signed
   requestJson: v3PrivateRequestJson, // handed to the mint; the stored, committed text adds the summary
   lane: "deploy_gate",
+  // Generated when the lane signed deploy_gate/v1: this vector is frozen
+  // history under that tag, so it names its tag instead of the lane's.
+  projectionTag: "deploy_gate/v1",
   agentId: "github-actions",
   runId: "run_18533200417",
   status: "APPROVED",
@@ -773,6 +795,7 @@ const v3ApprovePublic = {
   inputHash: v3PublicScopeHash,
   requestJson: v3PublicRequestJson,
   lane: "deploy_gate",
+  projectionTag: "deploy_gate/v1", // frozen history, as above
   agentId: "github-actions",
   runId: "run_18533987102",
   status: "APPROVED",
@@ -868,17 +891,313 @@ const v3Revoke = {
   createdAt: "2026-10-06T09:05:00.000Z",
 };
 
+// ---------------------------------------------------------------------------
+// deploy_gate/v2 (SPEC.md section 3.7): the deploy-gate lane's tag after Rod's
+// decision of 2026-10-08 (F-2 Q-F2-4). deploy_gate/v1 path for path, with the
+// matched policy rule's id and version (‡) projected only when the request
+// records scope.visibility "public". The rule stays in the committed request.
+// ---------------------------------------------------------------------------
+
+const POLICY_FILE = ".permission-protocol.yml";
+
+// v3/approve-human-deploy-gate-v2-private-repo: a customer protected-path
+// rule holds a change on a private repository, and a human approves it after
+// a passkey step-up. The rule id names an internal control, and so does the
+// rule version (<rule id>@<policy commit>): neither is projected.
+const v2PrivateRequestId = "vec14v2privaterepo000001";
+const v2PrivateScope = {
+  repo: "acme/treasury-service",
+  ref: "refs/pull/318/merge",
+  commitSha: "5b7d9f1a3c5e7a9b1d3f5a7c9e1b3d5f7a9c1e3b",
+  capability: "deploy:production",
+  env: "production",
+  workflow: ".github/workflows/deploy.yml",
+  artifactDigest: null,
+  visibility: "private",
+};
+const v2PrivateScopeHash = deployGateScopeHash(v2PrivateScope);
+const v2PrivatePolicyCommit = "6d8f0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e";
+const v2PrivateExpiresAt = "2026-10-08T14:15:00.000Z";
+const v2PrivateRequestJson = deployGateRequestJsonV3({
+  requestId: v2PrivateRequestId,
+  expiresAtIso: v2PrivateExpiresAt,
+  scope: v2PrivateScope,
+  policyDecision: {
+    ruleId: "hold.repo_protected_path",
+    ruleVersion: `wire-transfer-limits@${v2PrivatePolicyCommit}`,
+    outcome: "approval_required",
+    matchedInputs: {
+      changeClass: "repo_policy",
+      analysisComplete: true,
+      targetBranch: "main",
+      defaultBranch: "main",
+      changedPaths: ["src/wires/limits.test.ts", "src/wires/limits.ts"],
+      riskSignals: [{ category: "Payments", severity: "high", files: ["src/wires/limits.ts"] }],
+      repoPolicy: {
+        path: POLICY_FILE,
+        ref: v2PrivatePolicyCommit,
+        status: "loaded",
+        rule: { id: "wire-transfer-limits", match: "src/wires/**", rationale: "Wire limits change only with treasury sign-off" },
+        matchedFiles: ["src/wires/limits.test.ts", "src/wires/limits.ts"],
+      },
+    },
+  },
+  authorizationBinding: {
+    version: 1,
+    repository: "acme/treasury-service",
+    prNumber: 318,
+    branch: "main",
+    commitSha: v2PrivatePolicyCommit,
+    path: POLICY_FILE,
+    rulesHash: "b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5",
+  },
+  enrichmentSnapshot: {
+    summary: "Raises the daily wire limit for verified counterparties",
+    riskSignals: [{ category: "Payments", severity: "high", reason: "Changes the wire transfer ceiling" }],
+    verificationSteps: [{ step: "Confirm the new ceiling with treasury before merging", riskTier: "high" }],
+    confidenceWarnings: [],
+    linkedIssueTitle: "TRS-88: raise the verified-counterparty wire limit",
+    generatedAt: "2026-10-08T13:58:00.000Z",
+    consequenceBrief: null,
+    policyOutcome: "approval_required",
+  },
+});
+const v2ApprovePrivate = {
+  ...V3_BASE,
+  id: `rcpt_dg_${v2PrivateRequestId}`,
+  companyId: TENANT,
+  idemKey: `deploy-gate:${v2PrivateRequestId}:${v2PrivateScopeHash}`,
+  inputHash: v2PrivateScopeHash,
+  requestJson: v2PrivateRequestJson,
+  lane: "deploy_gate", // signs PROJECTION_TAG_BY_LANE.deploy_gate, deploy_gate/v2
+  agentId: "github-actions",
+  runId: "run_18620344105",
+  status: "APPROVED",
+  riskTier: null,
+  policyVersion: "deploy-gate-v1",
+  reasonCodes: JSON.stringify(["DEPLOY_GATE_APPROVED"]),
+  summary: "Deploy gate authorization approved",
+  deciderId: "user:usr_vec_alice_00000001",
+  deciderDisplay: "alice-example",
+  deciderAuthMethod: "session_stepup_webauthn",
+  stepUpEvidence: {
+    method: "webauthn",
+    credentialIdHash: evidenceHash("alice passkey credential id"),
+    challengeHash: evidenceHash("vec14 assertion challenge"),
+    authenticatorDataHash: evidenceHash("vec14 authenticator data"),
+    userVerified: true,
+    counter: 23,
+    rpId: RP_ID,
+    origin: RP_ORIGIN,
+    boundRequestId: v2PrivateRequestId,
+    boundScopeHash: v2PrivateScopeHash,
+    reviewGeneration: 1,
+    verifiedAt: "2026-10-08T13:59:48.000Z",
+  },
+  resolutionType: "allow_once",
+  attributionConfidence: "credentialed",
+  scope: "production",
+  expiresAt: v2PrivateExpiresAt,
+  createdAt: "2026-10-08T14:00:00.000Z",
+};
+
+// v3/approve-human-deploy-gate-v2-public-repo: PP's built-in protected-path
+// hold on a public repository, approved over a plain session. The rule is
+// projected, exactly as deploy_gate/v1 projects it.
+const v2PublicRequestId = "vec15v2publicrepo0000001";
+const v2PublicScope = {
+  repo: "acme/docs-site",
+  ref: "refs/pull/96/merge",
+  commitSha: "9a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c",
+  capability: "deploy:production",
+  env: "production",
+  workflow: ".github/workflows/pages.yml",
+  artifactDigest: null,
+  visibility: "public",
+};
+const v2PublicScopeHash = deployGateScopeHash(v2PublicScope);
+const v2PublicPolicyCommit = "1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a";
+const v2PublicExpiresAt = "2026-10-08T15:15:00.000Z";
+const v2PublicRequestJson = deployGateRequestJsonV3({
+  requestId: v2PublicRequestId,
+  expiresAtIso: v2PublicExpiresAt,
+  scope: v2PublicScope,
+  policyDecision: {
+    ruleId: "hold.protected_path",
+    ruleVersion: "outcome-router-v1",
+    outcome: "approval_required",
+    matchedInputs: {
+      changeClass: "protected",
+      analysisComplete: true,
+      targetBranch: "main",
+      defaultBranch: "main",
+      changedPaths: [".github/workflows/pages.yml"],
+      riskSignals: [{ category: "Delivery", severity: "medium", files: [".github/workflows/pages.yml"] }],
+      repoPolicy: { path: POLICY_FILE, ref: v2PublicPolicyCommit, status: "loaded" },
+    },
+  },
+  authorizationBinding: {
+    version: 1,
+    repository: "acme/docs-site",
+    prNumber: 96,
+    branch: "main",
+    commitSha: v2PublicPolicyCommit,
+    path: POLICY_FILE,
+    rulesHash: "c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7",
+  },
+  enrichmentSnapshot: {
+    summary: "Moves the docs deploy to the pages workflow's new runner",
+    riskSignals: [{ category: "Delivery", severity: "medium", reason: "Edits the deploy workflow" }],
+    verificationSteps: [{ step: "Check the preview build before merging", riskTier: "medium" }],
+    confidenceWarnings: [],
+    linkedIssueTitle: null,
+    generatedAt: "2026-10-08T14:52:00.000Z",
+    consequenceBrief: null,
+    policyOutcome: "approval_required",
+  },
+});
+const v2ApprovePublic = {
+  ...V3_BASE,
+  id: `rcpt_dg_${v2PublicRequestId}`,
+  companyId: TENANT,
+  idemKey: `deploy-gate:${v2PublicRequestId}:${v2PublicScopeHash}`,
+  inputHash: v2PublicScopeHash,
+  requestJson: v2PublicRequestJson,
+  lane: "deploy_gate",
+  agentId: "github-actions",
+  runId: "run_18621907736",
+  status: "APPROVED",
+  riskTier: null,
+  policyVersion: "deploy-gate-v1",
+  reasonCodes: JSON.stringify(["DEPLOY_GATE_APPROVED"]),
+  summary: "Deploy gate authorization approved",
+  deciderId: "user:usr_vec_bob_00000002",
+  deciderDisplay: "bob-example",
+  deciderAuthMethod: "session",
+  resolutionType: "allow_once",
+  attributionConfidence: "credentialed",
+  scope: "production",
+  expiresAt: v2PublicExpiresAt,
+  createdAt: "2026-10-08T15:00:00.000Z",
+};
+
+// v3/deny-policy-deploy-gate-v2-private-repo: the webhook's policy denial of a
+// change on the private repository (app webhook handler.ts
+// createPolicyDenialReceipt): the policy engine denies under PP's built-in
+// classifier rule, which an override may appeal. Neither the decision's rule
+// nor the denial's is projected, and the signed reasonCodes carry the code
+// alone, without the rule id (app receipt-payload.ts ruleReasonCodes).
+const v2DenyRequestId = "vec16v2policydeny0000001";
+const v2DenyScope = {
+  ...v2PrivateScope,
+  ref: "refs/pull/321/merge",
+  commitSha: "2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b",
+};
+const v2DenyScopeHash = deployGateScopeHash(v2DenyScope);
+const v2DenyRuleId = "deny.deterministic_dangerous_diff";
+const v2DenyCreatedAt = "2026-10-08T16:00:00.000Z";
+const v2DenyExpiresAt = "2027-10-08T16:00:00.000Z"; // createdAt + 365 days, as the webhook signs a denial
+const v2DenyReason = "PP denied this change: a credential-shaped assignment in config/payments.env, line 12";
+const v2DenyRequestJson = deployGateRequestJsonV3({
+  requestId: v2DenyRequestId,
+  expiresAtIso: v2DenyExpiresAt,
+  scope: v2DenyScope,
+  denial: {
+    category: "policy",
+    reason: v2DenyReason,
+    requireNewRequest: true,
+    deciderKind: "machine:classifier",
+    decisionClass: "classifier",
+    ruleId: v2DenyRuleId,
+    final: false,
+  },
+  policyDecision: {
+    ruleId: v2DenyRuleId,
+    ruleVersion: "outcome-router-v1",
+    outcome: "denied",
+    matchedInputs: {
+      changeClass: "unclassified",
+      analysisComplete: true,
+      targetBranch: "main",
+      defaultBranch: "main",
+      changedPaths: ["config/payments.env"],
+      riskSignals: [{ category: "Security", severity: "critical", files: ["config/payments.env"] }],
+      repoPolicy: { path: POLICY_FILE, ref: v2PrivatePolicyCommit, status: "loaded" },
+      findings: [
+        {
+          predicate: "hardcoded_secret",
+          label: "credential-shaped assignment",
+          file: "config/payments.env",
+          line: 12,
+          excerpt: null,
+          fix: "Move the value to the secret store and reference it by name",
+        },
+      ],
+    },
+  },
+  authorizationBinding: {
+    version: 1,
+    repository: "acme/treasury-service",
+    prNumber: 321,
+    branch: "main",
+    commitSha: v2PrivatePolicyCommit,
+    path: POLICY_FILE,
+    rulesHash: "b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5",
+  },
+  enrichmentSnapshot: {
+    summary: "Adds the payment processor's sandbox settings",
+    riskSignals: [{ category: "Security", severity: "critical", reason: "Commits a credential-shaped value" }],
+    verificationSteps: [],
+    confidenceWarnings: [],
+    linkedIssueTitle: null,
+    generatedAt: "2026-10-08T15:59:00.000Z",
+    consequenceBrief: null,
+    policyOutcome: "denied",
+  },
+});
+const v2DenyPolicy = {
+  ...V3_BASE,
+  id: `rcpt_dg_${v2DenyRequestId}_denial_policy-1`,
+  companyId: TENANT,
+  idemKey: `deploy-gate-denial:${v2DenyRequestId}:${v2DenyScopeHash}:policy-1`,
+  inputHash: v2DenyScopeHash,
+  requestJson: v2DenyRequestJson,
+  lane: "deploy_gate",
+  agentId: "system/pp-engine",
+  runId: "run_18623310984",
+  status: "DENIED",
+  riskTier: null,
+  policyVersion: "deploy-gate-v1",
+  // The request records scope.visibility "private": the code alone. A public
+  // repository's denial signs ["DEPLOY_GATE_DENIED", <rule id>].
+  reasonCodes: JSON.stringify(["DEPLOY_GATE_DENIED"]),
+  summary: v2DenyReason,
+  deciderId: "system/pp-engine",
+  deciderDisplay: "Permission Protocol policy engine",
+  deciderAuthMethod: "policy",
+  resolutionType: "deny",
+  attributionConfidence: "credentialed",
+  scope: "production",
+  expiresAt: v2DenyExpiresAt,
+  createdAt: v2DenyCreatedAt,
+};
+
 /**
  * Mint a v3 row as the issuer's signer does (app signing/receipt-v3.ts and
  * decider-proof.ts): add the row's binding to the request under
  * receiptBinding and the summary under receiptSummary, commit to that text
  * with the vector's salt, project it under the lane's tag, and build the
- * decider proof from the stored step-up evidence. The bound row stores the
+ * decider proof from the stored step-up evidence. The tag is the row's
+ * `projectionTag` when it names one, else the one its lane signs today
+ * (PROJECTION_TAG_BY_LANE). The bound row stores the
  * committed text as requestJson. `override` replaces the committed request,
  * the projection or the proof, for the deliberately defective vectors only.
  */
 function bindV3(row, name, override = {}) {
   const salt = v3Salt(name);
+  // The tag the lane signs today, unless the row names the tag it was signed
+  // under (the frozen deploy_gate/v1 vectors).
+  const projectionTag = row.projectionTag ?? PROJECTION_TAG_BY_LANE[row.lane];
   const binding = receiptBindingFor(row);
   const requestJson = override.requestJson ?? committedRequestJson(row.requestJson, row.summary, binding);
   const deciderProof = Object.prototype.hasOwnProperty.call(override, "deciderProof")
@@ -890,7 +1209,8 @@ function bindV3(row, name, override = {}) {
     receiptBinding: binding,
     requestJson,
     requestCommitment: requestCommitment(salt, requestJson),
-    publicProjectionJson: override.publicProjectionJson ?? buildPublicProjection(PROJECTION_TAG_BY_LANE[row.lane], requestJson),
+    projectionTag,
+    publicProjectionJson: override.publicProjectionJson ?? buildPublicProjection(projectionTag, requestJson),
     deciderProof, // null when the decider did not step up: absent from the bytes
     salt,
   };
@@ -971,6 +1291,26 @@ const v3NoBindingBound = bindV3(v3NoBindingRow, v3NoBindingName, {
   requestJson: canonicalJson({ ...JSON.parse(v3RefundRequestJson), [RECEIPT_SUMMARY_REQUEST_KEY]: v3NoBindingRow.summary }),
 });
 
+const v2PrivateBound = bindV3(v2ApprovePrivate, "approve-human-deploy-gate-v2-private-repo");
+const v2PublicBound = bindV3(v2ApprovePublic, "approve-human-deploy-gate-v2-public-repo");
+const v2DenyBound = bindV3(v2DenyPolicy, "deny-policy-deploy-gate-v2-private-repo");
+for (const bound of [v2PrivateBound, v2PublicBound, v2DenyBound]) {
+  if (bound.projectionTag !== "deploy_gate/v2") throw new Error(`${bound.id} is not signed under deploy_gate/v2`);
+}
+
+// A private rule published: an issuer defect, signed for real with the test
+// key. The private deploy_gate/v2 approval's projection with the matched
+// rule's id and version put back, as deploy_gate/v1 would publish them. The
+// signature is valid; the projection check must reject it.
+const v2PublishedRuleName = "published-rule-approve-human-deploy-gate-v2-private-repo";
+const v2PublishedRuleProjection = JSON.parse(v2PrivateBound.publicProjectionJson);
+const v2PrivateDecision = JSON.parse(v2PrivateRequestJson).policy.decision;
+v2PublishedRuleProjection.policy.decision.ruleId = v2PrivateDecision.ruleId;
+v2PublishedRuleProjection.policy.decision.ruleVersion = v2PrivateDecision.ruleVersion;
+const v2PublishedRuleBound = bindV3({ ...v2ApprovePrivate, id: "rcpt_dg_vec17v2publishedrule0001" }, v2PublishedRuleName, {
+  publicProjectionJson: canonicalJson(v2PublishedRuleProjection),
+});
+
 const v3Vectors = {
   "approve-human-deploy-gate-private-repo.json": v3Envelope(v3PrivateBound, {
     description: "jcs_v3. APPROVED by a named human on the deploy-gate lane for a private repository, after a passkey step-up. The signed bytes carry no companyId, idemKey, requestJson, inputHash or summary: a salted requestCommitment, a deploy_gate/v1 projection and a webauthn deciderProof instead. companyId, idemKey and inputHash are committed inside the request under receiptBinding, the summary under receiptSummary. scope.visibility is private, so the projection omits every repository-identity (†) path: no repository, ref, workflow, branches, changed paths or PR number. The commit SHA, environment, capability and rule@version stay public. The proof carries three digests, the relying party, the review round and the time; the stored evidence's counter, bound request id and bound scope hash are not signed. The committed request, with the binding under receiptBinding and the summary under receiptSummary, is test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json.",
@@ -1021,6 +1361,26 @@ const v3Vectors = {
     source: "SPEC.md sections 3.5 and 6.7, step 3",
     expected: "verified",
   }),
+  "approve-human-deploy-gate-v2-private-repo.json": v3Envelope(v2PrivateBound, {
+    description: "jcs_v3 under deploy_gate/v2, the projection the deploy-gate lane signs from the issuer change that follows permission-protocol/app#688. APPROVED by a named human for a private repository, after a passkey step-up, on a hold by the workspace's own protected-path rule. scope.visibility is private, so the projection omits every repository-identity (†) path and every policy-rule-identity (‡) path: no policy.decision.ruleId or ruleVersion (which here names the customer's rule, wire-transfer-limits, at its policy commit). The decision outcome, the change class, the commit SHA, the policy commit and the rules hash stay public. A verifier reports the rule as withheld and never names policyVersion in its place. The committed request keeps the rule; opening it (test-vectors/v3/openings/approve-human-deploy-gate-v2-private-repo.request.json) shows hold.repo_protected_path@wire-transfer-limits@<policy commit>.",
+    source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on, deploy-gate lane on deploy_gate/v2; signing/public-projection.ts",
+    expected: "verified",
+  }),
+  "approve-human-deploy-gate-v2-public-repo.json": v3Envelope(v2PublicBound, {
+    description: "jcs_v3 under deploy_gate/v2. APPROVED by a named human over a plain session (no decider proof) for a public repository, on PP's built-in protected-path hold. scope.visibility is public, so the projection carries the repository-identity (†) paths and the matched rule (‡), hold.protected_path@outcome-router-v1, exactly as deploy_gate/v1 would.",
+    source: "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on, deploy-gate lane on deploy_gate/v2",
+    expected: "verified",
+  }),
+  "deny-policy-deploy-gate-v2-private-repo.json": v3Envelope(v2DenyBound, {
+    description: "jcs_v3 under deploy_gate/v2. DENIED by the policy engine (system/pp-engine) on the webhook, for a private repository, under PP's built-in classifier rule (appealable: final false). The projection carries the denial's category, decision class, finality and requireNewRequest, and the decision outcome, but neither the decision's rule nor metadata.denial.ruleId (‡). The signed reasonCodes are [\"DEPLOY_GATE_DENIED\"], without the rule id a public repository's denial carries as its second code. A verifier reports the rule as withheld, never the signed policyVersion (deploy-gate-v1) in its place. The engine's reason is the committed summary.",
+    source: "app src/app/api/github-app/webhook/handler.ts (createPolicyDenialReceipt) with PP_RECEIPT_V3=on; deploy-gate/receipt-payload.ts ruleReasonCodes",
+    expected: "verified",
+  }),
+  [`${v2PublishedRuleName}.json`]: v3Envelope(v2PublishedRuleBound, {
+    description: "A deliberate issuer defect, signed for real with the test key: the private-repository deploy_gate/v2 approval with policy.decision.ruleId and ruleVersion put back into its projection, as deploy_gate/v1 would publish them. scope.visibility is private, so deploy_gate/v2 never emits them. The signature verifies; the projection check MUST reject it as PROJECTION_NOT_ALLOWED, first at policy.decision.ruleId, policy rule identity on a projection whose scope.visibility is not public: a policy failure, not tampering. Opening its commitment with the right request and salt gives PUBLIC_PROJECTION_MISMATCH.",
+    source: "SPEC.md sections 3.6, 3.7 and 6.7, projection check",
+    expected: "PROJECTION_NOT_ALLOWED",
+  }),
 };
 
 // The private side. A real issuer never publishes it; it hands a request, its
@@ -1046,6 +1406,9 @@ const v3Openings = {
   "reformatted-approve-human-deploy-gate-private-repo.request.json": new ExactText(reformattedPrivateRequest),
   "modified-approve-human-execute-lane-refund.request.json": new ExactText(modifiedRefundRequest),
   [`${v3NoBindingName}.request.json`]: new ExactText(v3NoBindingBound.requestJson),
+  "approve-human-deploy-gate-v2-private-repo.request.json": new ExactText(v2PrivateBound.requestJson),
+  "approve-human-deploy-gate-v2-public-repo.request.json": new ExactText(v2PublicBound.requestJson),
+  "deny-policy-deploy-gate-v2-private-repo.request.json": new ExactText(v2DenyBound.requestJson),
   "openings.json": {
     description:
       "Commitment openings for the jcs_v3 vectors (SPEC.md section 6.7, step 3). Each case names a receipt vector in test-vectors/v3/, a request file in this directory (its exact text: the commitment covers it byte for byte, so read it without reformatting), a 32-byte salt in hex and, when present, summary: the summary the issuer states for the receipt beside the request (a string, or null for none), which must equal the committed receiptSummary; and binding: the companyId, idemKey and inputHash the issuer states for the receipt (any subset; the owner fields company_id, idem_key and input_hash), each of which must equal the committed receiptBinding value. A case without summary or binding states none and compares nothing, but the committed request must still carry a receiptBinding as the mint writes it. expected is the result of the opening step alone: opened, REQUEST_COMMITMENT_MISMATCH, COMMITTED_SUMMARY_MISMATCH, RECEIPT_BINDING_MISMATCH or PUBLIC_PROJECTION_MISMATCH. These salts are fixed test values; an issuer draws 32 random bytes per receipt and never publishes them.",
@@ -1064,6 +1427,10 @@ const v3Openings = {
       opening("approve-human-execute-lane-refund.json", "approve-human-execute-lane-refund.request.json", v3RefundBound.salt, v3RefundBound.summary, "RECEIPT_BINDING_MISMATCH", "The commitment opens and the summary holds, but the stated companyId is another workspace's: the stored record says the receipt belongs to a workspace the commitment does not bind. jcs_v2 signed companyId; jcs_v3 commits it under receiptBinding, so only an opening catches this.", { ...v3RefundBound.receiptBinding, companyId: "co_vector_tenant_0002" }),
       opening(`${v3NoBindingName}.json`, `${v3NoBindingName}.request.json`, v3NoBindingBound.salt, v3NoBindingBound.summary, "RECEIPT_BINDING_MISMATCH", "The commitment opens and the summary holds, but the committed request carries no receiptBinding, which every jcs_v3 mint writes: the record cannot be the one the issuer committed. No binding needs to be stated for this to fail."),
       opening(`${v3LeakName}.json`, "approve-human-execute-lane-refund.request.json", v3LeakBound.salt, v3LeakBound.summary, "PUBLIC_PROJECTION_MISMATCH", "The commitment opens and the summary holds, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."),
+      opening("approve-human-deploy-gate-v2-private-repo.json", "approve-human-deploy-gate-v2-private-repo.request.json", v2PrivateBound.salt, v2PrivateBound.summary, "opened", "deploy_gate/v2 on a private repository: the commitment opens, the stated summary and binding are the committed ones, and the deploy_gate/v2 projection rebuilt from the request equals the signed one, without the matched rule. The opened request records it: policy.decision is hold.repo_protected_path at wire-transfer-limits@<policy commit>, which the owner sees and the public bytes do not carry.", v2PrivateBound.receiptBinding),
+      opening("approve-human-deploy-gate-v2-public-repo.json", "approve-human-deploy-gate-v2-public-repo.request.json", v2PublicBound.salt, v2PublicBound.summary, "opened", "deploy_gate/v2 on a public repository: the projection rebuilt from the request carries the repository identity and the matched rule."),
+      opening("deny-policy-deploy-gate-v2-private-repo.json", "deny-policy-deploy-gate-v2-private-repo.request.json", v2DenyBound.salt, v2DenyBound.summary, "opened", "The private repository's policy denial under deploy_gate/v2: the engine's reason is the committed summary, and the opened request records the rule (deny.deterministic_dangerous_diff) on the decision and on metadata.denial."),
+      opening(`${v2PublishedRuleName}.json`, "approve-human-deploy-gate-v2-private-repo.request.json", v2PublishedRuleBound.salt, v2PublishedRuleBound.summary, "PUBLIC_PROJECTION_MISMATCH", "The commitment opens and the summary holds, but the deploy_gate/v2 projection rebuilt from the request has no policy.decision.ruleId or ruleVersion, which the defective receipt signed."),
     ],
   },
 };
@@ -1121,9 +1488,15 @@ if (inputsPath) {
     "approve-human-deploy-gate-public-repo.json": v3PublicBound,
     "approve-human-execute-lane-refund.json": v3RefundBound,
     "revoke-human-deploy-gate.json": v3RevokeBound,
+    "approve-human-deploy-gate-v2-private-repo.json": v2PrivateBound,
+    "approve-human-deploy-gate-v2-public-repo.json": v2PublicBound,
+    "deny-policy-deploy-gate-v2-private-repo.json": v2DenyBound,
   }).map(([name, bound]) => ({
     vector: `test-vectors/v3/${name}`,
     lane: bound.lane,
+    // The tag to sign under: the frozen deploy_gate/v1 vectors name theirs,
+    // the others take the one their lane signs today.
+    projection_tag: bound.projectionTag,
     salt_hex: bound.salt.toString("hex"),
     request_json: bound.mintRequestJson,
     summary: bound.summary,

@@ -1,0 +1,97 @@
+{
+  "description": "jcs_v3 under deploy_gate/v2. APPROVED by a named human over a plain session (no decider proof) for a public repository, on PP's built-in protected-path hold. scope.visibility is public, so the projection carries the repository-identity (†) paths and the matched rule (‡), hold.protected_path@outcome-router-v1, exactly as deploy_gate/v1 would.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on, deploy-gate lane on deploy_gate/v2",
+  "artifact": {
+    "receipt_id": "rcpt_dg_vec15v2publicrepo0000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "798306b4a00517afc1c2d94c577614fb1ee9b89f7ae314464331be9b4bfbdc5d",
+    "signature_b64": "SXOteXAt2Ws5eXJmB+2YxjQArdvnFJrkjKN2FQGKg6oREe9dFykw1U7UYFBFOBKW301f1W1430ulWRn2UiSzDA==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiZ2l0aHViLWFjdGlvbnMiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YzIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0wOFQxNTowMDowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJzZXNzaW9uIiwiZGVjaWRlckRpc3BsYXkiOiJib2ItZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19ib2JfMDAwMDAwMDIiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTA4VDE1OjE1OjAwLjAwMFoiLCJpZCI6InJjcHRfZGdfdmVjMTV2MnB1YmxpY3JlcG8wMDAwMDAxIiwicG9saWN5VmVyc2lvbiI6ImRlcGxveS1nYXRlLXYxIiwicHVibGljUHJvamVjdGlvbkpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcImRlcGxveVwiLFwidG9vbFwiOlwiZ2l0aHViLWFjdGlvbnNcIn0sXCJjb250ZXh0XCI6e1wiZW52aXJvbm1lbnRcIjpcInByb2R1Y3Rpb25cIixcInJldmVyc2liaWxpdHlcIjpcIlJFVkVSU0lCTEVcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwiZGVwbG95bWVudFwiLFwibmFtZVwiOlwiZGVwbG95X2dhdGVfYXBwcm92YWxcIn0sXCJtZXRhZGF0YVwiOntcImRlcGxveUdhdGVSZXF1ZXN0SWRcIjpcInZlYzE1djJwdWJsaWNyZXBvMDAwMDAwMVwifSxcInBvbGljeVwiOntcImF1dGhvcml6YXRpb25CaW5kaW5nXCI6e1wiYnJhbmNoXCI6XCJtYWluXCIsXCJjb21taXRTaGFcIjpcIjFmM2E1YzdlOWIxZDNmNWE3YzllMmI0ZDZmOGEwYzFlM2I1ZDdmOWFcIixcInBhdGhcIjpcIi5wZXJtaXNzaW9uLXByb3RvY29sLnltbFwiLFwicHJOdW1iZXJcIjo5NixcInJlcG9zaXRvcnlcIjpcImFjbWUvZG9jcy1zaXRlXCIsXCJydWxlc0hhc2hcIjpcImM1ZTdiOWQxZjNhNWM3ZTliMWQzZjVhN2M5ZTFiM2Q1ZjdhOWMxZTNiNWQ3ZjlhMWMzZTViN2Q5ZjFhM2M1ZTdcIixcInZlcnNpb25cIjoxfSxcImRlY2lzaW9uXCI6e1wibWF0Y2hlZElucHV0c1wiOntcImFuYWx5c2lzQ29tcGxldGVcIjp0cnVlLFwiY2hhbmdlQ2xhc3NcIjpcInByb3RlY3RlZFwiLFwiY2hhbmdlZFBhdGhzXCI6W1wiLmdpdGh1Yi93b3JrZmxvd3MvcGFnZXMueW1sXCJdLFwiZGVmYXVsdEJyYW5jaFwiOlwibWFpblwiLFwidGFyZ2V0QnJhbmNoXCI6XCJtYWluXCJ9LFwib3V0Y29tZVwiOlwiYXBwcm92YWxfcmVxdWlyZWRcIixcInJ1bGVJZFwiOlwiaG9sZC5wcm90ZWN0ZWRfcGF0aFwiLFwicnVsZVZlcnNpb25cIjpcIm91dGNvbWUtcm91dGVyLXYxXCJ9LFwiZXhwaXJlc0F0XCI6XCIyMDI2LTEwLTA4VDE1OjE1OjAwLjAwMFpcIn0sXCJwcm9qZWN0aW9uXCI6XCJkZXBsb3lfZ2F0ZS92MlwiLFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCI5YTFjM2U1YjdkOWYyYTRjNmU4YjBkMWYzYTVjN2U5YjJkNGY2YThjXCIsXCJlbnZcIjpcInByb2R1Y3Rpb25cIixcInJlZlwiOlwicmVmcy9wdWxsLzk2L21lcmdlXCIsXCJyZXBvXCI6XCJhY21lL2RvY3Mtc2l0ZVwiLFwidmlzaWJpbGl0eVwiOlwicHVibGljXCIsXCJ3b3JrZmxvd1wiOlwiLmdpdGh1Yi93b3JrZmxvd3MvcGFnZXMueW1sXCJ9fSIsInJlYXNvbkNvZGVzIjoiW1wiREVQTE9ZX0dBVEVfQVBQUk9WRURcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MywicmVxdWVzdENvbW1pdG1lbnQiOiJzaGEyNTY6NTM1YzAwNTc2Y2UxYTRkMWMxYTc4ZThiZDcyNWI2N2QyYjgyYjY0ZjkyZThiZmUzMjJiMzY1MTNkZWZkYTMwNCIsInJlc29sdXRpb25UeXBlIjoiYWxsb3dfb25jZSIsInJ1bklkIjoicnVuXzE4NjIxOTA3NzM2Iiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQifQ==",
+    "issued_at": "2026-10-08T15:00:00.000Z",
+    "expires_at": "2026-10-08T15:15:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
+  "receipt": {
+    "agentId": "github-actions",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-08T15:00:00.000Z",
+    "deciderAuthMethod": "session",
+    "deciderDisplay": "bob-example",
+    "deciderId": "user:usr_vec_bob_00000002",
+    "expiresAt": "2026-10-08T15:15:00.000Z",
+    "id": "rcpt_dg_vec15v2publicrepo0000001",
+    "policyVersion": "deploy-gate-v1",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"deploy\",\"tool\":\"github-actions\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"REVERSIBLE\"},\"intent\":{\"category\":\"deployment\",\"name\":\"deploy_gate_approval\"},\"metadata\":{\"deployGateRequestId\":\"vec15v2publicrepo0000001\"},\"policy\":{\"authorizationBinding\":{\"branch\":\"main\",\"commitSha\":\"1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a\",\"path\":\".permission-protocol.yml\",\"prNumber\":96,\"repository\":\"acme/docs-site\",\"rulesHash\":\"c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7\",\"version\":1},\"decision\":{\"matchedInputs\":{\"analysisComplete\":true,\"changeClass\":\"protected\",\"changedPaths\":[\".github/workflows/pages.yml\"],\"defaultBranch\":\"main\",\"targetBranch\":\"main\"},\"outcome\":\"approval_required\",\"ruleId\":\"hold.protected_path\",\"ruleVersion\":\"outcome-router-v1\"},\"expiresAt\":\"2026-10-08T15:15:00.000Z\"},\"projection\":\"deploy_gate/v2\",\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"9a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c\",\"env\":\"production\",\"ref\":\"refs/pull/96/merge\",\"repo\":\"acme/docs-site\",\"visibility\":\"public\",\"workflow\":\".github/workflows/pages.yml\"}}",
+    "reasonCodes": "[\"DEPLOY_GATE_APPROVED\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:535c00576ce1a4d1c1a78e8bd725b67d2b82b64f92e8bfe322b36513defda304",
+    "resolutionType": "allow_once",
+    "runId": "run_18621907736",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED"
+  },
+  "expected": "verified",
+  "projection": {
+    "action": {
+      "operation": "deploy",
+      "tool": "github-actions"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "REVERSIBLE"
+    },
+    "intent": {
+      "category": "deployment",
+      "name": "deploy_gate_approval"
+    },
+    "metadata": {
+      "deployGateRequestId": "vec15v2publicrepo0000001"
+    },
+    "policy": {
+      "authorizationBinding": {
+        "branch": "main",
+        "commitSha": "1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c1e3b5d7f9a",
+        "path": ".permission-protocol.yml",
+        "prNumber": 96,
+        "repository": "acme/docs-site",
+        "rulesHash": "c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7",
+        "version": 1
+      },
+      "decision": {
+        "matchedInputs": {
+          "analysisComplete": true,
+          "changeClass": "protected",
+          "changedPaths": [
+            ".github/workflows/pages.yml"
+          ],
+          "defaultBranch": "main",
+          "targetBranch": "main"
+        },
+        "outcome": "approval_required",
+        "ruleId": "hold.protected_path",
+        "ruleVersion": "outcome-router-v1"
+      },
+      "expiresAt": "2026-10-08T15:15:00.000Z"
+    },
+    "projection": "deploy_gate/v2",
+    "scope": {
+      "capability": "deploy:production",
+      "commitSha": "9a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c",
+      "env": "production",
+      "ref": "refs/pull/96/merge",
+      "repo": "acme/docs-site",
+      "visibility": "public",
+      "workflow": ".github/workflows/pages.yml"
+    }
+  }
+}

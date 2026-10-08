@@ -15,6 +15,7 @@
 // commitment openings, with the summary and binding values stated beside
 // each, and their expected results.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -39,8 +40,9 @@ import {
   buildPublicProjection,
   checkPublicProjection,
   projectionProblem,
+  tagWithholdsPolicyIdentity,
 } from "../tools/public-projection.mjs";
-import { EXIT_CODES, openRequestCommitment, summaryFromFile, verifyArtifact } from "../tools/verify.mjs";
+import { EXIT_CODES, describeWithheldRule, openRequestCommitment, ruleOf, ruleWithheldFrom, summaryFromFile, verifyArtifact } from "../tools/verify.mjs";
 import { validate } from "./mini-schema.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -86,10 +88,15 @@ const statedBinding = (entry) => (Object.prototype.hasOwnProperty.call(entry, "b
 const ownOpening = (name) => openings.find((entry) => entry.receipt_vector === name && entry.request_file === name.replace(/\.json$/, ".request.json"))
   ?? openings.find((entry) => entry.receipt_vector === name && entry.expected === "opened");
 
-test("the v3 vector set: every lane, both repository visibilities, both decider proof methods, and the negative vectors", () => {
+test("the v3 vector set: every tag, both repository visibilities, both decider proof methods, and the negative vectors", () => {
   const verified = files.filter((name) => read(`test-vectors/v3/${name}`).expected === "verified");
   const tags = verified.map((name) => read(`test-vectors/v3/${name}`).projection.projection).sort();
-  assert.deepEqual([...new Set(tags)], ["deploy_gate/v1", "execute/v1", "revocation/v1"]);
+  assert.deepEqual([...new Set(tags)], Object.keys(PROJECTION_ALLOWLISTS).sort());
+  assert.deepEqual([...new Set(tags)], ["deploy_gate/v1", "deploy_gate/v2", "execute/v1", "revocation/v1"]);
+  // deploy_gate/v2 is signed for both visibilities, and for an approval and a policy denial.
+  const v2 = verified.map((name) => read(`test-vectors/v3/${name}`)).filter((vector) => vector.projection.projection === "deploy_gate/v2");
+  assert.deepEqual(v2.map((vector) => vector.projection.scope.visibility).sort(), ["private", "private", "public"]);
+  assert.deepEqual(v2.map((vector) => vector.receipt.status).sort(), ["APPROVED", "APPROVED", "DENIED"]);
   const visibilities = verified.map((name) => read(`test-vectors/v3/${name}`).projection.scope?.visibility).filter(Boolean);
   assert.ok(visibilities.includes("public") && visibilities.includes("private"));
   const proofs = verified.map((name) => read(`test-vectors/v3/${name}`).receipt.deciderProof?.method ?? null).sort();
@@ -98,7 +105,7 @@ test("the v3 vector set: every lane, both repository visibilities, both decider 
   assert.ok(verified.includes("no-binding-approve-human-execute-lane-refund.json"));
   assert.deepEqual(
     files.map((name) => read(`test-vectors/v3/${name}`).expected).filter((expected) => expected !== "verified").sort(),
-    ["DECIDER_PROOF_INVALID", "DECIDER_PROOF_MISMATCH", "PROJECTION_NOT_ALLOWED", "SIGNATURE_INVALID"]
+    ["DECIDER_PROOF_INVALID", "DECIDER_PROOF_MISMATCH", "PROJECTION_NOT_ALLOWED", "PROJECTION_NOT_ALLOWED", "SIGNATURE_INVALID"]
   );
 });
 
@@ -296,7 +303,7 @@ test("v3 commitment openings (openings.json): each case gives its expected resul
       assert.equal(EXIT_CODES[entry.expected], 10);
     }
   }
-  assert.deepEqual(tally, { opened: 5, REQUEST_COMMITMENT_MISMATCH: 3, COMMITTED_SUMMARY_MISMATCH: 2, RECEIPT_BINDING_MISMATCH: 2, PUBLIC_PROJECTION_MISMATCH: 1 });
+  assert.deepEqual(tally, { opened: 8, REQUEST_COMMITMENT_MISMATCH: 3, COMMITTED_SUMMARY_MISMATCH: 2, RECEIPT_BINDING_MISMATCH: 2, PUBLIC_PROJECTION_MISMATCH: 2 });
   // At least one opened case compares stated binding values, and one fails on them.
   assert.ok(openings.some((entry) => entry.expected === "opened" && entry.binding));
   assert.ok(openings.some((entry) => entry.expected === "RECEIPT_BINDING_MISMATCH" && entry.binding));
@@ -561,7 +568,7 @@ test("an unknown canonicalization fails closed as unsupported, never as tampered
 
 test("an unknown projection tag fails closed as unsupported, even with a valid signature; a projection that names no tag is malformed", () => {
   const payload = decode(read("test-vectors/v3/approve-human-execute-lane-refund.json"));
-  for (const projection of ['{"projection":"execute/v2"}', '{"projection":"deploy_gate/v9"}', '{"projection":""}']) {
+  for (const projection of ['{"projection":"execute/v2"}', '{"projection":"deploy_gate/v3"}', '{"projection":"deploy_gate/v9"}', '{"projection":""}']) {
     const result = verifyArtifact(signedEnvelope({ ...payload, publicProjectionJson: projection }), keys);
     assert.equal(result.code, "PROJECTION_UNSUPPORTED", projection);
     assert.equal(result.exitCode, 8);
@@ -719,26 +726,237 @@ test("the build rule: identifier and enum slots omit, never truncate; † paths 
   for (const text of ["[]", '"text"', "null", "42", "not json", ""]) {
     assert.throws(() => buildPublicProjection("deploy_gate/v1", text), (error) => error.code === "REQUEST_NOT_OBJECT");
   }
-  assert.throws(() => buildPublicProjection("deploy_gate/v2", "{}"), (error) => error.code === "PROJECTION_UNSUPPORTED");
-  assert.deepEqual(PROJECTION_TAG_BY_LANE, { deploy_gate: "deploy_gate/v1", execute: "execute/v1", revocation: "revocation/v1" });
+  assert.throws(() => buildPublicProjection("deploy_gate/v3", "{}"), (error) => error.code === "PROJECTION_UNSUPPORTED");
+  // The tag each lane signs today, as the issuer's map (app public-projection.ts, from the mint change that follows app #688).
+  assert.deepEqual(PROJECTION_TAG_BY_LANE, { deploy_gate: "deploy_gate/v2", execute: "execute/v1", revocation: "revocation/v1" });
+});
+
+// ---------------------------------------------------------------------------
+// deploy_gate/v2 (SPEC.md sections 3.4, 3.6, 3.7 and 6.7): deploy_gate/v1 with
+// the matched policy rule's id and version (‡) projected only when the request
+// records scope.visibility "public".
+// ---------------------------------------------------------------------------
+
+const POLICY_IDENTITY = ["policy.decision.ruleId", "policy.decision.ruleVersion", "metadata.denial.ruleId", "metadata.override.ruleId", "metadata.override.ruleVersion"];
+
+/** A copy of `value` without the dotted paths, pruning containers left empty. */
+function without(value, paths) {
+  const copy = structuredClone(value);
+  for (const path of paths) {
+    const keys = path.split(".");
+    const chain = [copy];
+    for (const key of keys.slice(0, -1)) chain.push(chain[chain.length - 1]?.[key]);
+    if (chain[chain.length - 1] && typeof chain[chain.length - 1] === "object") delete chain[chain.length - 1][keys[keys.length - 1]];
+    for (let index = chain.length - 1; index > 0; index -= 1) {
+      if (chain[index] && typeof chain[index] === "object" && Object.keys(chain[index]).length === 0) delete chain[index - 1][keys[index - 1]];
+    }
+  }
+  return copy;
+}
+
+const ruleRequest = (visibility) => ({
+  intent: { name: "deploy_gate_policy_override", category: "deployment" },
+  scope: { commitSha: "3c9e1f0a7b2d4c6e8f0a1b3c5d7e9f1a2b4c6d8e", repo: "acme/app", ...(visibility === undefined ? {} : { visibility }) },
+  policy: { decision: { outcome: "denied", ruleId: "deny.deterministic_dangerous_diff", ruleVersion: "outcome-router-v1", matchedInputs: { changeClass: "unclassified" } } },
+  metadata: {
+    denial: { category: "policy", decisionClass: "classifier", ruleId: "deny.deterministic_dangerous_diff", final: false },
+    override: { overriddenDecisionClass: "classifier", ruleId: "deny.deterministic_dangerous_diff", ruleVersion: "outcome-router-v1", nextState: "approved" },
+  },
+});
+
+test("deploy_gate/v2: the ‡ paths are exactly the matched rule's id and version, and only deploy_gate/v2 marks them", () => {
+  assert.deepEqual(PROJECTION_ALLOWLISTS["deploy_gate/v2"].filter((field) => field.policyIdentity).map((field) => field.path), POLICY_IDENTITY);
+  assert.deepEqual(
+    Object.keys(PROJECTION_ALLOWLISTS).filter((tag) => tagWithholdsPolicyIdentity(tag)),
+    ["deploy_gate/v2"]
+  );
+  assert.equal(tagWithholdsPolicyIdentity("deploy_gate/v3"), false);
+  // Every ‡ path is a deploy_gate/v1 path, and is otherwise unchanged (a value slot, no † mark).
+  for (const path of POLICY_IDENTITY) {
+    const v1 = PROJECTION_ALLOWLISTS["deploy_gate/v1"].find((field) => field.path === path);
+    const v2 = PROJECTION_ALLOWLISTS["deploy_gate/v2"].find((field) => field.path === path);
+    assert.ok(v1 && !v1.policyIdentity && !v1.id && !v1.oneOf && !v1.repositoryIdentity, path);
+    assert.deepEqual({ ...v2, policyIdentity: undefined }, { ...v1, policyIdentity: undefined }, path);
+  }
+});
+
+test("deploy_gate/v2 build rule: ‡ paths follow scope.visibility exactly as † paths do; deploy_gate/v1 keeps publishing them", () => {
+  for (const visibility of [undefined, "private", "internal", "PUBLIC", true, { public: true }]) {
+    const requestJson = JSON.stringify(ruleRequest(visibility));
+    const v1 = JSON.parse(buildPublicProjection("deploy_gate/v1", requestJson));
+    const v2 = JSON.parse(buildPublicProjection("deploy_gate/v2", requestJson));
+    const text = JSON.stringify(v2);
+    assert.ok(!text.includes("deny.deterministic_dangerous_diff") && !text.includes("outcome-router-v1"), `${String(visibility)}: ${text}`);
+    assert.equal(v1.policy.decision.ruleId, "deny.deterministic_dangerous_diff", String(visibility));
+    // Everything else is deploy_gate/v1's: the outcome, the class, the finality, the override's next state.
+    assert.deepEqual({ ...v2, projection: "deploy_gate/v1" }, without(v1, POLICY_IDENTITY), String(visibility));
+    assert.equal(v2.policy.decision.outcome, "denied");
+    assert.equal(v2.metadata.denial.decisionClass, "classifier");
+    assert.equal(v2.metadata.override.nextState, "approved");
+    assert.equal(v2.scope.repo, undefined, "† still applies");
+  }
+  // A public repository: deploy_gate/v1's projection, under the new tag.
+  const publicJson = JSON.stringify(ruleRequest("public"));
+  assert.deepEqual(
+    JSON.parse(buildPublicProjection("deploy_gate/v2", publicJson)),
+    { ...JSON.parse(buildPublicProjection("deploy_gate/v1", publicJson)), projection: "deploy_gate/v2" }
+  );
+  // A rule alone, without the rest of its decision, prunes to nothing.
+  assert.equal(buildPublicProjection("deploy_gate/v2", '{"metadata":{"denial":{"ruleId":"r"}},"policy":{"decision":{"ruleId":"r","ruleVersion":"v"}}}'), '{"projection":"deploy_gate/v2"}');
+});
+
+test("deploy_gate/v2 projection check: a ‡ path without scope.visibility \"public\" is policy rule identity, a policy failure", () => {
+  const check = (projection) => projectionProblem(JSON.stringify(sortDeep(projection)));
+  for (const path of POLICY_IDENTITY) {
+    const keys = path.split(".");
+    const projection = { projection: "deploy_gate/v2" };
+    let level = projection;
+    for (const key of keys.slice(0, -1)) level = level[key] = {};
+    level[keys[keys.length - 1]] = "hold.repo_protected_path";
+    for (const scope of [undefined, { visibility: "private" }]) {
+      const value = scope ? { ...projection, scope } : projection;
+      assert.equal(check(value), `${path} is policy rule identity and scope.visibility is not "public"`, `${path} ${JSON.stringify(scope)}`);
+      const result = checkPublicProjection(JSON.stringify(sortDeep(value)));
+      assert.equal(result.code, "PROJECTION_NOT_ALLOWED");
+      assert.equal(result.message, `deploy_gate/v2: ${path} is policy rule identity and scope.visibility is not "public"`);
+      // deploy_gate/v1 is frozen: the same projection under it is allowed.
+      assert.equal(check({ ...value, projection: "deploy_gate/v1" }), null, path);
+    }
+    assert.equal(check({ ...projection, scope: { visibility: "public" } }), null, path);
+  }
+  // A ‡ path keeps its slot: a value, so an object is still refused for what it is.
+  assert.match(check({ projection: "deploy_gate/v2", scope: { visibility: "public" }, policy: { decision: { ruleId: { id: "x" } } } }), /scalar or an array of scalars/);
+});
+
+test("deploy_gate/v2 vectors: a private repository's rule is nowhere in the signed bytes, reasonCodes included; the committed request keeps it", () => {
+  for (const name of ["approve-human-deploy-gate-v2-private-repo.json", "deny-policy-deploy-gate-v2-private-repo.json"]) {
+    const vector = read(`test-vectors/v3/${name}`);
+    const text = Buffer.from(vector.artifact.payload_bytes_b64, "base64").toString("utf8");
+    assert.equal(vector.projection.projection, "deploy_gate/v2");
+    assert.equal(vector.projection.scope.visibility, "private");
+    const request = JSON.parse(readText(`test-vectors/v3/openings/${name.replace(/\.json$/, ".request.json")}`));
+    const recorded = [request.policy?.decision?.ruleId, request.policy?.decision?.ruleVersion, request.metadata?.denial?.ruleId, request.metadata?.override?.ruleId, request.metadata?.override?.ruleVersion].filter(Boolean);
+    assert.ok(recorded.length >= 2, `${name} commits its rule`);
+    for (const value of recorded) assert.ok(!text.includes(value), `${name}: ${value} is in the signed bytes`);
+    assert.ok(!text.includes('"ruleId"') && !text.includes('"ruleVersion"'), name);
+    // The decision itself stays public.
+    assert.equal(vector.projection.policy.decision.outcome, request.policy.decision.outcome);
+    // A rule-carrying code names the rule only for a public repository (SPEC.md 3.4).
+    for (const code of JSON.parse(vector.receipt.reasonCodes)) assert.ok(!recorded.includes(code), `${name}: reason code ${code}`);
+  }
+  const denial = read("test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json");
+  assert.equal(denial.receipt.reasonCodes, '["DEPLOY_GATE_DENIED"]');
+  assert.equal(denial.receipt.deciderId, "system/pp-engine");
+  assert.deepEqual(denial.projection.metadata.denial, { category: "policy", decisionClass: "classifier", final: false, requireNewRequest: true });
+  // The public repository's receipt publishes the rule, as deploy_gate/v1 does.
+  const open = read("test-vectors/v3/approve-human-deploy-gate-v2-public-repo.json");
+  assert.equal(open.projection.scope.visibility, "public");
+  assert.equal(open.projection.scope.repo, "acme/docs-site");
+  assert.equal(`${open.projection.policy.decision.ruleId}@${open.projection.policy.decision.ruleVersion}`, "hold.protected_path@outcome-router-v1");
+});
+
+test("deploy_gate/v1 vectors are frozen history: they name their tag, keep it, and verify as before", () => {
+  for (const name of ["approve-human-deploy-gate-private-repo.json", "approve-human-deploy-gate-public-repo.json"]) {
+    const vector = read(`test-vectors/v3/${name}`);
+    const requestJson = readText(`test-vectors/v3/openings/${name.replace(/\.json$/, ".request.json")}`);
+    assert.equal(vector.projection.projection, "deploy_gate/v1", name);
+    assert.equal(buildPublicProjection("deploy_gate/v1", requestJson), vector.receipt.publicProjectionJson, name);
+    const result = verifyArtifact(vector, keys);
+    assert.equal(result.ok, true, result.message);
+    assert.equal(result.ruleWithheld, false, name);
+    assert.equal(result.rule, ruleOf(JSON.parse(requestJson)), name);
+  }
+  // The pin is load-bearing: under the lane's tag today, the private one would no longer publish its rule.
+  const privateJson = readText("test-vectors/v3/openings/approve-human-deploy-gate-private-repo.request.json");
+  assert.notEqual(buildPublicProjection(PROJECTION_TAG_BY_LANE.deploy_gate, privateJson), read("test-vectors/v3/approve-human-deploy-gate-private-repo.json").receipt.publicProjectionJson);
+});
+
+test("section 6.7: a withheld rule is reported as withheld, never as policyVersion, and named once the commitment is opened", () => {
+  const cases = [
+    ["approve-human-deploy-gate-v2-private-repo.json", true, null],
+    ["deny-policy-deploy-gate-v2-private-repo.json", true, null],
+    ["approve-human-deploy-gate-v2-public-repo.json", false, "hold.protected_path@outcome-router-v1"],
+    ["approve-human-execute-lane-refund.json", false, null],
+    ["revoke-human-deploy-gate.json", false, null],
+  ];
+  for (const [name, withheld, rule] of cases) {
+    const vector = read(`test-vectors/v3/${name}`);
+    const result = verifyArtifact(vector, keys);
+    assert.equal(result.ok, true, result.message);
+    assert.equal(result.ruleWithheld, withheld, name);
+    assert.equal(result.rule, rule, name);
+    assert.equal(ruleWithheldFrom(result.projectionTag, result.projection), withheld, name);
+    const entry = openings.find((candidate) => candidate.receipt_vector === name && candidate.expected === "opened");
+    const requestJson = readText(`test-vectors/v3/openings/${entry.request_file}`);
+    const opened = verifyArtifact(vector, keys, { opening: { requestJson, salt: Buffer.from(entry.salt_hex, "hex") } });
+    assert.equal(opened.ok, true, opened.message);
+    assert.equal(opened.committedRule, withheld ? ruleOf(JSON.parse(requestJson)) : null, name);
+  }
+  // The policy engine's denial signs policyVersion deploy-gate-v1; it is never shown as the rule.
+  const denial = read("test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json");
+  assert.equal(denial.receipt.policyVersion, "deploy-gate-v1");
+  const cli = (args) => spawnSync(process.execPath, [join(root, "tools/verify.mjs"), ...args], { encoding: "utf8" });
+  const entry = openings.find((candidate) => candidate.receipt_vector === "deny-policy-deploy-gate-v2-private-repo.json");
+  const plain = cli([join(root, "test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json"), join(root, "test-vectors/keys.json")]);
+  assert.equal(plain.status, 0, plain.stderr);
+  const ruleLines = (stdout) => stdout.split("\n").filter((line) => line.startsWith("rule: "));
+  assert.deepEqual(ruleLines(plain.stdout), ["rule: withheld (private repository): the signed projection carries no policy rule id or version; opening the request commitment shows it"]);
+  assert.ok(plain.stdout.includes("policy: deploy-gate-v1"), "the policy version is reported as the policy");
+  const opened = cli([
+    join(root, "test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json"), join(root, "test-vectors/keys.json"),
+    "--request", join(root, "test-vectors/v3/openings", entry.request_file), "--salt", entry.salt_hex,
+  ]);
+  assert.equal(opened.status, 0, opened.stderr);
+  assert.deepEqual(ruleLines(opened.stdout), ["rule: withheld (private repository): the signed projection carries no policy rule id or version; the opened request commitment records deny.deterministic_dangerous_diff@outcome-router-v1"]);
+  const published = cli([join(root, "test-vectors/v3/approve-human-deploy-gate-v2-public-repo.json"), join(root, "test-vectors/keys.json")]);
+  assert.deepEqual(ruleLines(published.stdout), ["rule: hold.protected_path@outcome-router-v1"]);
+
+  // No visibility recorded: treated as private, and said so. Signed for real with the test key.
+  const payload = decode(read("test-vectors/v3/approve-human-deploy-gate-v2-private-repo.json"));
+  const projection = JSON.parse(payload.publicProjectionJson);
+  delete projection.scope.visibility;
+  const unrecorded = verifyArtifact(signedEnvelope({ ...payload, publicProjectionJson: JSON.stringify(sortDeep(projection)) }), keys);
+  assert.equal(unrecorded.ok, true, unrecorded.message);
+  assert.equal(describeWithheldRule(unrecorded), "withheld (visibility not recorded, so treated as private): the signed projection carries no policy rule id or version; opening the request commitment shows it");
+  assert.equal(describeWithheldRule({ ...unrecorded, commitmentOpened: true, committedRule: null }), "withheld (visibility not recorded, so treated as private): the signed projection carries no policy rule id or version; the opened request commitment records no rule");
+  // The rule a request records: the decision's, else the override's, else the denial's.
+  assert.equal(ruleOf(ruleRequest("private")), "deny.deterministic_dangerous_diff@outcome-router-v1");
+  assert.equal(ruleOf({ metadata: ruleRequest("private").metadata }), "deny.deterministic_dangerous_diff@outcome-router-v1");
+  assert.equal(ruleOf({ metadata: { denial: { ruleId: "deny.x" } } }), "deny.x");
+  assert.equal(ruleOf({ metadata: { override: { ruleId: "deny.x" } } }), "deny.x");
+  assert.equal(ruleOf({ policy: { decision: { ruleId: "deny.x" } } }), null);
+  assert.equal(ruleOf({ policy: { decision: { ruleId: "deny.x" } } }, { decisionOnly: true }), null);
+  assert.equal(ruleOf({}), null);
 });
 
 test("SPEC.md section 3.7 tables state exactly the allowlists tools/public-projection.mjs builds with", () => {
   const spec = readText("SPEC.md");
-  for (const [tag, fields] of Object.entries(PROJECTION_ALLOWLISTS)) {
+  const slotOf = (field) => (field.id ? "identifier" : field.oneOf ? `one of ${field.oneOf.map((value) => `\`${value}\``).join(", ")}` : "value");
+  const tableRows = (tag) => {
     const start = spec.indexOf(`#### \`${tag}\``);
     assert.notEqual(start, -1, `SPEC.md has no table for ${tag}`);
     const rows = [];
     for (const line of spec.slice(start).split("\n").slice(1)) {
       if (line.startsWith("#")) break;
-      const match = line.match(/^\| `([^`]+)` \| ([^|]+?) \| (†?) *\|$/);
-      if (match) rows.push(`${match[1]} ${match[2]}${match[3] ? " †" : ""}`);
+      const match = line.match(/^\| `([^`]+)` \| ([^|]+?) \| ([†‡]?) *\|$/);
+      if (match) rows.push(`${match[1]} ${match[2]}${match[3] ? ` ${match[3]}` : ""}`);
     }
-    const expected = fields.map(
-      (field) =>
-        `${field.path} ${field.id ? "identifier" : field.oneOf ? `one of ${field.oneOf.map((value) => `\`${value}\``).join(", ")}` : "value"}${field.repositoryIdentity ? " †" : ""}`
-    );
-    assert.deepEqual(rows, expected, `SPEC.md table for ${tag}`);
+    return rows;
+  };
+  for (const [tag, fields] of Object.entries(PROJECTION_ALLOWLISTS)) {
+    if (tag === "deploy_gate/v2") {
+      // Stated as its difference from deploy_gate/v1: the table lists the ‡ paths, and nothing else changes.
+      assert.deepEqual(tableRows(tag), fields.filter((field) => field.policyIdentity).map((field) => `${field.path} ${slotOf(field)} ‡`), `SPEC.md table for ${tag}`);
+      assert.deepEqual(
+        fields.map(({ policyIdentity, ...field }) => field),
+        PROJECTION_ALLOWLISTS["deploy_gate/v1"].map((field) => ({ ...field })),
+        "deploy_gate/v2 is deploy_gate/v1 path for path, in the same order, with the same slots and † marks"
+      );
+      assert.ok(spec.includes("`deploy_gate/v2` is the `deploy_gate/v1` table, path for path, in the same order, with the same slots and † marks."));
+      continue;
+    }
+    assert.ok(fields.every((field) => !field.policyIdentity), `${tag} marks no ‡ path`);
+    assert.deepEqual(tableRows(tag), fields.map((field) => `${field.path} ${slotOf(field)}${field.repositoryIdentity ? " †" : ""}`), `SPEC.md table for ${tag}`);
   }
 });
 

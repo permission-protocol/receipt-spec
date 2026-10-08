@@ -66,12 +66,22 @@ jobs:
           if node tools/verify.mjs test-vectors/v3/tampered-approve-human-deploy-gate-private-repo.json test-vectors/keys.json; then
             echo "tampered v3 vector verified; that is a bug" && exit 1
           fi
-      - name: A signed jcs_v3 projection outside its allowlist must fail the projection check
+      - name: A signed jcs_v3 projection outside its allowlist, or a private deploy_gate/v2 projection that carries a rule id, must fail the projection check
         run: |
-          code=0
-          node tools/verify.mjs test-vectors/v3/outside-allowlist-approve-human-execute-lane-refund.json test-vectors/keys.json || code=$?
-          if [ "$code" -ne 9 ]; then
-            echo "expected exit 9 (projection not allowed), got $code" && exit 1
+          for vector in outside-allowlist-approve-human-execute-lane-refund published-rule-approve-human-deploy-gate-v2-private-repo; do
+            code=0
+            node tools/verify.mjs "test-vectors/v3/$vector.json" test-vectors/keys.json || code=$?
+            if [ "$code" -ne 9 ]; then
+              echo "$vector: expected exit 9 (projection not allowed), got $code" && exit 1
+            fi
+          done
+      - name: A private deploy_gate/v2 receipt reports its rule as withheld, never as the policy version
+        run: |
+          out=$(node tools/verify.mjs test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json test-vectors/keys.json)
+          echo "$out"
+          echo "$out" | grep -qx "rule: withheld (private repository): the signed projection carries no policy rule id or version; opening the request commitment shows it"
+          if echo "$out" | grep -q "^rule: deploy-gate-v1"; then
+            echo "the policy version was reported as the rule" && exit 1
           fi
       - name: A signed jcs_v3 decider proof that breaks its rules must fail the decider proof check
         run: |

@@ -111,6 +111,43 @@
       "summary": "Production environment requires human approval",
       "expected": "PUBLIC_PROJECTION_MISMATCH",
       "note": "The commitment opens and the summary holds, but the execute/v1 projection rebuilt from the request lacks the action.parameters the defective receipt signed."
+    },
+    {
+      "receipt_vector": "approve-human-deploy-gate-v2-private-repo.json",
+      "request_file": "approve-human-deploy-gate-v2-private-repo.request.json",
+      "salt_hex": "05f2531bc96caba4a8a3b629e8af364d90c6bf2cb0abe49537b2bd6b7602504a",
+      "summary": "Deploy gate authorization approved",
+      "binding": {
+        "companyId": "co_vector_tenant_0001",
+        "idemKey": "deploy-gate:vec14v2privaterepo000001:919973c98f2bfaecbe127f378763473e932cae4041a8e0a93fcdd78ffa35b9c7",
+        "inputHash": "919973c98f2bfaecbe127f378763473e932cae4041a8e0a93fcdd78ffa35b9c7"
+      },
+      "expected": "opened",
+      "note": "deploy_gate/v2 on a private repository: the commitment opens, the stated summary and binding are the committed ones, and the deploy_gate/v2 projection rebuilt from the request equals the signed one, without the matched rule. The opened request records it: policy.decision is hold.repo_protected_path at wire-transfer-limits@<policy commit>, which the owner sees and the public bytes do not carry."
+    },
+    {
+      "receipt_vector": "approve-human-deploy-gate-v2-public-repo.json",
+      "request_file": "approve-human-deploy-gate-v2-public-repo.request.json",
+      "salt_hex": "dfbc3c917f3663347d42c5835c516eb53bca9dd40a5097857ec8f1474ae9e42e",
+      "summary": "Deploy gate authorization approved",
+      "expected": "opened",
+      "note": "deploy_gate/v2 on a public repository: the projection rebuilt from the request carries the repository identity and the matched rule."
+    },
+    {
+      "receipt_vector": "deny-policy-deploy-gate-v2-private-repo.json",
+      "request_file": "deny-policy-deploy-gate-v2-private-repo.request.json",
+      "salt_hex": "54ebfb0b8f40a09e8f588348d11a0340d084b4e47f60d1992179f8c7df679ef9",
+      "summary": "PP denied this change: a credential-shaped assignment in config/payments.env, line 12",
+      "expected": "opened",
+      "note": "The private repository's policy denial under deploy_gate/v2: the engine's reason is the committed summary, and the opened request records the rule (deny.deterministic_dangerous_diff) on the decision and on metadata.denial."
+    },
+    {
+      "receipt_vector": "published-rule-approve-human-deploy-gate-v2-private-repo.json",
+      "request_file": "approve-human-deploy-gate-v2-private-repo.request.json",
+      "salt_hex": "b710ac5fac4b93f1ec0a2d721c35cae71da35e3c885f7ee0368c6b8d6707aa0d",
+      "summary": "Deploy gate authorization approved",
+      "expected": "PUBLIC_PROJECTION_MISMATCH",
+      "note": "The commitment opens and the summary holds, but the deploy_gate/v2 projection rebuilt from the request has no policy.decision.ruleId or ruleVersion, which the defective receipt signed."
     }
   ]
 }
