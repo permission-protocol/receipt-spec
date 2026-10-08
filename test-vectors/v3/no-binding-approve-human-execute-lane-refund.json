@@ -1,0 +1,60 @@
+{
+  "description": "A deliberate issuer defect, signed for real with the test key: an execute-lane v3 approval whose committed request carries the summary but no receiptBinding, which every jcs_v3 mint writes (SPEC.md section 3.5). Nothing in the signed bytes shows it, so a verifier without the request verifies it. Opening its commitment gives RECEIPT_BINDING_MISMATCH: the record cannot be the one the issuer committed.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "SPEC.md sections 3.5 and 6.7, step 3",
+  "artifact": {
+    "receipt_id": "cmvec13v3nobinding0000000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "9fdf2e6ed2c8c9ca40e32bec649b28096139b9af0a6df58b3fcc16dd0a4dc09c",
+    "signature_b64": "0dEhPtOvtF1HY8DnPPJQOom98sOEvB5zF3j4gulkBI+v/6caUoMHsCc8jWARxwSE2fUbw7eiXajPNic4PNVnCA==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoib3BzLWFnZW50IiwiYXR0cmlidXRpb25Db25maWRlbmNlIjoiY3JlZGVudGlhbGVkIiwiY2Fub25pY2FsaXphdGlvbiI6Impjc192MyIsImNyZWF0ZWRBdCI6IjIwMjYtMTAtMDZUMTE6MDI6MDAuMDAwWiIsImRlY2lkZXJBdXRoTWV0aG9kIjoic2Vzc2lvbiIsImRlY2lkZXJEaXNwbGF5IjoiYWxpY2UtZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19hbGljZV8wMDAwMDAwMSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMDZUMTE6MjA6MDAuMDAwWiIsImlkIjoiY212ZWMxM3Yzbm9iaW5kaW5nMDAwMDAwMDAwMSIsInBvbGljeVZlcnNpb24iOiJwb2xfdjFfaGFyZGNvZGVkIiwicHVibGljUHJvamVjdGlvbkpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcInJlZnVuZFwiLFwidG9vbFwiOlwic3RyaXBlXCJ9LFwiY29udGV4dFwiOntcImVudmlyb25tZW50XCI6XCJwcm9kdWN0aW9uXCIsXCJyZXZlcnNpYmlsaXR5XCI6XCJJUlJFVkVSU0lCTEVcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwicGF5bWVudHNcIixcIm5hbWVcIjpcInN0cmlwZTpyZWZ1bmRcIn0sXCJwcm9qZWN0aW9uXCI6XCJleGVjdXRlL3YxXCJ9IiwicmVhc29uQ29kZXMiOiJbXCJVTlJFR0lTVEVSRURfVE9PTDpzdHJpcGVcIixcIklSUkVWRVJTSUJMRTpJUlJFVkVSU0lCTEVcIixcIlBST0RVQ1RJT05fRU5WXCIsXCJQUk9EVUNUSU9OX1JFUVVJUkVTX0FQUFJPVkFMXCJdIiwicmVjZWlwdFZlcnNpb24iOjMsInJlcXVlc3RDb21taXRtZW50Ijoic2hhMjU2OjNlZTFkNzc3MjdkOGNkY2E2NWVjYjM2OGJiMzA2YjAxNzBjNjg5Yjk2NGEzZTRlYjRmZTBiMWI0OTYyMWUwZWIiLCJyZXNvbHV0aW9uVHlwZSI6ImFsbG93X29uY2UiLCJyaXNrVGllciI6IkNfRVhFQ1VURV9XSVRIX0FQUFJPVkFMIiwicnVuSWQiOiJydW5fYzBmZmVlMDIiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJwcC10ZXN0LTIwMjYtcTIiLCJzdGF0dXMiOiJBUFBST1ZFRCJ9",
+    "issued_at": "2026-10-06T11:02:00.000Z",
+    "expires_at": "2026-10-06T11:20:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
+  "receipt": {
+    "agentId": "ops-agent",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-06T11:02:00.000Z",
+    "deciderAuthMethod": "session",
+    "deciderDisplay": "alice-example",
+    "deciderId": "user:usr_vec_alice_00000001",
+    "expiresAt": "2026-10-06T11:20:00.000Z",
+    "id": "cmvec13v3nobinding0000000001",
+    "policyVersion": "pol_v1_hardcoded",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"refund\",\"tool\":\"stripe\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"IRREVERSIBLE\"},\"intent\":{\"category\":\"payments\",\"name\":\"stripe:refund\"},\"projection\":\"execute/v1\"}",
+    "reasonCodes": "[\"UNREGISTERED_TOOL:stripe\",\"IRREVERSIBLE:IRREVERSIBLE\",\"PRODUCTION_ENV\",\"PRODUCTION_REQUIRES_APPROVAL\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:3ee1d77727d8cdca65ecb368bb306b0170c689b964a3e4eb4fe0b1b49621e0eb",
+    "resolutionType": "allow_once",
+    "riskTier": "C_EXECUTE_WITH_APPROVAL",
+    "runId": "run_c0ffee02",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED"
+  },
+  "expected": "verified",
+  "projection": {
+    "action": {
+      "operation": "refund",
+      "tool": "stripe"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "IRREVERSIBLE"
+    },
+    "intent": {
+      "category": "payments",
+      "name": "stripe:refund"
+    },
+    "projection": "execute/v1"
+  }
+}

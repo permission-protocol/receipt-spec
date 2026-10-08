@@ -8,6 +8,8 @@ How a signed receipt relates to the controls buyers are asked about. Three statu
 
 Permission Protocol implements controls and produces evidence. It is not a conformance target, and nothing here is a certification, a compliance claim, or a statement that any framework's requirement is met. The site pages linked below carry the full mappings and are the source of record; this appendix pins the receipt fields each mapping relies on so an assessor can go from a control to a field to a byte.
 
+The field names below are those of `jcs_v2`. A `jcs_v3` receipt (`SPEC.md` section 3.4) does not sign `requestJson`, `inputHash`, `summary`, `companyId` or `idemKey`. Read `requestJson` and `inputHash` there as `publicProjectionJson`, the part of the request anyone can check, and `requestCommitment`, which binds the full request for the workspace that opens it (`SPEC.md` section 6.7). Read `summary` as the committed request's `receiptSummary`, and `companyId`, `idemKey` and `inputHash` as its `receiptBinding`: evidence only for whoever opens the commitment. A `jcs_v3` receipt also signs the decider's step-up evidence, `deciderProof` (`SPEC.md` section 3.8), beside `deciderAuthMethod`.
+
 ## AIUC-1 (July 15, 2026 numbering)
 
 Full mapping: https://permissionprotocol.com/compliance/aiuc-1
