@@ -727,7 +727,7 @@ test("the build rule: identifier and enum slots omit, never truncate; † paths 
     assert.throws(() => buildPublicProjection("deploy_gate/v1", text), (error) => error.code === "REQUEST_NOT_OBJECT");
   }
   assert.throws(() => buildPublicProjection("deploy_gate/v3", "{}"), (error) => error.code === "PROJECTION_UNSUPPORTED");
-  // The tag each lane signs today, as the issuer's map (app public-projection.ts, from the mint change that follows app #688).
+  // The tag each lane signs today, as the issuer's map (app public-projection.ts, from app #691).
   assert.deepEqual(PROJECTION_TAG_BY_LANE, { deploy_gate: "deploy_gate/v2", execute: "execute/v1", revocation: "revocation/v1" });
 });
 
