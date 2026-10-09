@@ -269,7 +269,7 @@ A recorded decision is projected as its display name and time, never its auth me
 
 #### `deploy_gate/v2`
 
-Signed by every deploy-gate mint path listed in 3.4 from `permission-protocol/app#691` on. It is specified before the first receipt carries it: every issuer verifier reads it from `permission-protocol/app#688` on, and `VERSIONING.md` will record the date the lane first signs it. Rod decided on 2026-10-08 (design note F-2, question Q-F2-4) to hide a private repository's matched rule ids from the signed public projection, because rule ids can reveal a workspace's internal controls; the owner's evidence keeps them, and receipts already signed stay as they are.
+Signed by every deploy-gate mint path listed in 3.4 from `permission-protocol/app#691` on, issued by the hosted service since 2026-10-09 (`VERSIONING.md`). Every issuer verifier reads it from `permission-protocol/app#688` on, which went live first. Rod decided on 2026-10-08 (design note F-2, question Q-F2-4) to hide a private repository's matched rule ids from the signed public projection, because rule ids can reveal a workspace's internal controls; the owner's evidence keeps them, and receipts already signed stay as they are.
 
 `deploy_gate/v2` is the `deploy_gate/v1` table, path for path, in the same order, with the same slots and † marks. It adds the ‡ mark (3.6 step 3) to exactly these five paths:
 
@@ -764,6 +764,15 @@ The issuer's projection builder was unchanged from commit `c655e8d5`, where it a
 - Its `ruleReasonCodes` gave the denial vector's signed `["DEPLOY_GATE_DENIED"]`, and `["DEPLOY_GATE_DENIED","deny.deterministic_dangerous_diff"]` for the same request marked public.
 - Its opening (`checkReceiptV3RequestBinding`) agreed with every `deploy_gate/v2` case in `v3/openings/openings.json`.
 - Its npm verifier (0.4.2, from that commit) verified the three valid vectors, reported the rule of the two private ones as withheld and named the committed rule once `--request` and `--salt` opened them, and failed the published-rule vector with exit 9 (`PROJECTION_NOT_ALLOWED`).
+
+**`deploy_gate/v2` in production, 2026-10-09.** `permission-protocol/app#691` went live at 15:46 UTC. The first production `deploy_gate/v2` receipt, `rcpt_dg_cmv1ej9p4000iefrelxwobz2u`, is a passkey-stepped-up human approval for a private repository, signed at 20:32 UTC. `tools/verify.mjs` at this revision verified it against the issuer's published key set:
+
+- the projection is `deploy_gate/v2` within its allowlist, with `scope.visibility` `"private"`;
+- `policy.decision` carries only `matchedInputs` and `outcome`, and `reasonCodes` is `["DEPLOY_GATE_APPROVED"]`;
+- the signed bytes carry no rule id, rule version or repository name;
+- the rule is reported as withheld.
+
+The npm verifier 0.4.2 verified it with the same result. 0.4.1 exits 8 (`PROJECTION_UNSUPPORTED`), unverifiable rather than tampered. The `deploy_gate/v1` receipt the same issuer signed for that change before it went live (`rcpt_dg_cmv1448wg003fsx85pt47ilgq`) still publishes its rule and verifies unchanged.
 
 ## 13. Relationship to other documents
 
