@@ -11,12 +11,13 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { attestationBytes, outputHash } from "../tools/canonicalize.mjs";
 import { attestationClaimProblem, verifyAttestationArtifact } from "../tools/verify.mjs";
 import { validate } from "./mini-schema.mjs";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (relative) => JSON.parse(readFileSync(join(root, relative), "utf8"));
 const schema = read("schema/attestation-v1.json");
 const keys = read("test-vectors/keys.json");

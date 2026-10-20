@@ -16,12 +16,13 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { canonicalBytes } from "../tools/canonicalize.mjs";
 import { verifyArtifact } from "../tools/verify.mjs";
 import { validate } from "./mini-schema.mjs";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (relative) => JSON.parse(readFileSync(join(root, relative), "utf8"));
 
 const receiptSchema = read("schema/receipt-v2.json");

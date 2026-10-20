@@ -19,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   RECEIPT_BINDING_FIELDS,
@@ -45,7 +46,7 @@ import {
 import { EXIT_CODES, describeWithheldRule, openRequestCommitment, ruleOf, ruleWithheldFrom, summaryFromFile, verifyArtifact } from "../tools/verify.mjs";
 import { validate } from "./mini-schema.mjs";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (relative) => JSON.parse(readFileSync(join(root, relative), "utf8"));
 const readText = (relative) => readFileSync(join(root, relative), "utf8");
 

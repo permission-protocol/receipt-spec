@@ -103,6 +103,7 @@
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   RECEIPT_SUMMARY_REQUEST_KEY,
   attestationBytes,
@@ -116,7 +117,7 @@ import {
 import { deciderProofForSigning } from "./decider-proof.mjs";
 import { PROJECTION_TAG_BY_LANE, buildPublicProjection } from "./public-projection.mjs";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const check = process.argv.includes("--check");
 const inputsIndex = process.argv.indexOf("--inputs");
 const inputsPath = inputsIndex === -1 ? null : process.argv[inputsIndex + 1];
