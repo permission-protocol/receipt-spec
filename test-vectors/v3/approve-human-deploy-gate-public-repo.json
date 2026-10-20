@@ -1,0 +1,122 @@
+{
+  "description": "jcs_v3. APPROVED by the second of two required approvers on the deploy-gate lane for a public repository, after a fresh GitHub sign-in (session_reauth, with a reauth deciderProof: sign-in time, maximum age, decision time). scope.visibility is public, so the projection carries the repository-identity (†) paths. The recorded decisions are projected as display name, auth method and time only; user ids, the rule's rationale, approver lists, the enrichment and the summary stay behind the commitment.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts (multi-approver rule) with PP_RECEIPT_V3=on",
+  "artifact": {
+    "receipt_id": "rcpt_dg_vec08v3publicrepo0000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "b3df815335cec4f7e73a7fa1ed95d651aee18ac852bef5d4d9773b356f2b5097",
+    "signature_b64": "+7g/4LGALr9US2KcawN4SCL6Wwiosz01AnF83540ocB/tCId+BxUS/N65o9EL7PUMmWORPzT6nRstov3HN2xCw==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiZ2l0aHViLWFjdGlvbnMiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YzIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0wNlQxMDozMDowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJzZXNzaW9uX3JlYXV0aCIsImRlY2lkZXJEaXNwbGF5IjoiYm9iLWV4YW1wbGUiLCJkZWNpZGVySWQiOiJ1c2VyOnVzcl92ZWNfYm9iXzAwMDAwMDAyIiwiZGVjaWRlclByb29mIjp7ImF1dGhUaW1lIjoiMjAyNi0xMC0wNlQxMDoyNzoxMi4wMDBaIiwibWF4QWdlTXMiOjMwMDAwMCwibWV0aG9kIjoicmVhdXRoIiwidmVyaWZpZWRBdCI6IjIwMjYtMTAtMDZUMTA6Mjk6NTguMDAwWiJ9LCJleHBpcmVzQXQiOiIyMDI2LTEwLTA2VDEwOjQ1OjAwLjAwMFoiLCJpZCI6InJjcHRfZGdfdmVjMDh2M3B1YmxpY3JlcG8wMDAwMDAxIiwicG9saWN5VmVyc2lvbiI6ImRlcGxveS1nYXRlLXYxIiwicHVibGljUHJvamVjdGlvbkpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcImRlcGxveVwiLFwidG9vbFwiOlwiZ2l0aHViLWFjdGlvbnNcIn0sXCJjb250ZXh0XCI6e1wiZW52aXJvbm1lbnRcIjpcInByb2R1Y3Rpb25cIixcInJldmVyc2liaWxpdHlcIjpcIlJFVkVSU0lCTEVcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwiZGVwbG95bWVudFwiLFwibmFtZVwiOlwiZGVwbG95X2dhdGVfYXBwcm92YWxcIn0sXCJtZXRhZGF0YVwiOntcImRlcGxveUdhdGVSZXF1ZXN0SWRcIjpcInZlYzA4djNwdWJsaWNyZXBvMDAwMDAwMVwifSxcInBvbGljeVwiOntcImF1dGhvcml6YXRpb25CaW5kaW5nXCI6e1wiYnJhbmNoXCI6XCJtYWluXCIsXCJjb21taXRTaGFcIjpcIjJjNGU2YThiMGQxZjNhNWM3ZTliMWQzZjVhN2M5ZTJiNGQ2ZjhhMGNcIixcInBhdGhcIjpcIi5wZXJtaXNzaW9uLXByb3RvY29sLnltbFwiLFwicHJOdW1iZXJcIjoxMjA0LFwicmVwb3NpdG9yeVwiOlwiYWNtZS9vcGVuLXNka1wiLFwicnVsZXNIYXNoXCI6XCJhMWMzZTViN2Q5ZjJhNGM2ZThiMGQxZjNhNWM3ZTliMmQ0ZjZhOGMwZTFiM2Q1ZjdhOWMyZTRiNmQ4ZjBhMWMzXCIsXCJ2ZXJzaW9uXCI6MX0sXCJkZWNpc2lvblwiOntcIm1hdGNoZWRJbnB1dHNcIjp7XCJhbmFseXNpc0NvbXBsZXRlXCI6dHJ1ZSxcImNoYW5nZUNsYXNzXCI6XCJwcm90ZWN0ZWRcIixcImNoYW5nZWRQYXRoc1wiOltcInBhY2thZ2VzL3Nkay9wYWNrYWdlLmpzb25cIixcInBhY2thZ2VzL3Nkay9zcmMvY2xpZW50LnRzXCJdLFwiZGVmYXVsdEJyYW5jaFwiOlwibWFpblwiLFwidGFyZ2V0QnJhbmNoXCI6XCJtYWluXCJ9LFwib3V0Y29tZVwiOlwiYXBwcm92YWxfcmVxdWlyZWRcIixcInJ1bGVJZFwiOlwiaG9sZC5yZXBvX3BvbGljeV9ydWxlXCIsXCJydWxlVmVyc2lvblwiOlwicmVsZWFzZS1hcHByb3ZlcnNAMmM0ZTZhOGIwZDFmM2E1YzdlOWIxZDNmNWE3YzllMmI0ZDZmOGEwY1wifSxcImV4cGlyZXNBdFwiOlwiMjAyNi0xMC0wNlQxMDo0NTowMC4wMDBaXCJ9LFwicG9saWN5QXV0aG9yaXphdGlvblwiOntcImJyYW5jaFwiOlwibWFpblwiLFwiZXZhbHVhdG9yVmVyc2lvblwiOlwicnVsZXMtdjFcIixcImhlYWRTaGFcIjpcIjdmMmE0YzZlOGIwZDFmM2E1YzdlOWIxZDNmNWE3YzllMGIyZDRmNmFcIixcInBvbGljeUJsb2JcIjpcIjRkNmY4YTBjMmU0YjZkOGYwYTFjM2U1YjdkOWYyYTRjNmU4YjBkMWZcIixcInJlY29yZGVkRGVjaXNpb25zXCI6W3tcImF0XCI6XCIyMDI2LTEwLTA2VDEwOjIxOjAwLjAwMFpcIixcImRpc3BsYXlOYW1lXCI6XCJhbGljZS1leGFtcGxlXCJ9LHtcImF0XCI6XCIyMDI2LTEwLTA2VDEwOjMwOjAwLjAwMFpcIixcImRpc3BsYXlOYW1lXCI6XCJib2ItZXhhbXBsZVwifV0sXCJ2ZXJzaW9uXCI6M30sXCJwcm9qZWN0aW9uXCI6XCJkZXBsb3lfZ2F0ZS92MVwiLFwic2NvcGVcIjp7XCJhcnRpZmFjdF9kaWdlc3RcIjpcInNoYTI1NjowZDRmN2ExYzNlNWI3ZDlmMmE0YzZlOGIwZDFmM2E1YzdlOWIyZDRmNmE4YzBlMWIzZDVmN2E5YzJlNGI2ZDhmXCIsXCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCI3ZjJhNGM2ZThiMGQxZjNhNWM3ZTliMWQzZjVhN2M5ZTBiMmQ0ZjZhXCIsXCJlbnZcIjpcInByb2R1Y3Rpb25cIixcInJlZlwiOlwicmVmcy9wdWxsLzEyMDQvbWVyZ2VcIixcInJlcG9cIjpcImFjbWUvb3Blbi1zZGtcIixcInZpc2liaWxpdHlcIjpcInB1YmxpY1wiLFwid29ya2Zsb3dcIjpcIi5naXRodWIvd29ya2Zsb3dzL3JlbGVhc2UueW1sXCJ9fSIsInJlYXNvbkNvZGVzIjoiW1wiREVQTE9ZX0dBVEVfQVBQUk9WRURcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MywicmVxdWVzdENvbW1pdG1lbnQiOiJzaGEyNTY6ZTZiZWYyODRjYjRlZTM1Yzc0ZGQ2YmU2YzcxZWQ1OTYzZDc1YTJiNTIxYjgyNGRkMDYyZDllMzkwMjVkOGRiYiIsInJlc29sdXRpb25UeXBlIjoiYWxsb3dfb25jZSIsInJ1bklkIjoicnVuXzE4NTMzOTg3MTAyIiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQifQ==",
+    "issued_at": "2026-10-06T10:30:00.000Z",
+    "expires_at": "2026-10-06T10:45:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
+  "receipt": {
+    "agentId": "github-actions",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-06T10:30:00.000Z",
+    "deciderAuthMethod": "session_reauth",
+    "deciderDisplay": "bob-example",
+    "deciderId": "user:usr_vec_bob_00000002",
+    "deciderProof": {
+      "authTime": "2026-10-06T10:27:12.000Z",
+      "maxAgeMs": 300000,
+      "method": "reauth",
+      "verifiedAt": "2026-10-06T10:29:58.000Z"
+    },
+    "expiresAt": "2026-10-06T10:45:00.000Z",
+    "id": "rcpt_dg_vec08v3publicrepo0000001",
+    "policyVersion": "deploy-gate-v1",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"deploy\",\"tool\":\"github-actions\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"REVERSIBLE\"},\"intent\":{\"category\":\"deployment\",\"name\":\"deploy_gate_approval\"},\"metadata\":{\"deployGateRequestId\":\"vec08v3publicrepo0000001\"},\"policy\":{\"authorizationBinding\":{\"branch\":\"main\",\"commitSha\":\"2c4e6a8b0d1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c\",\"path\":\".permission-protocol.yml\",\"prNumber\":1204,\"repository\":\"acme/open-sdk\",\"rulesHash\":\"a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3\",\"version\":1},\"decision\":{\"matchedInputs\":{\"analysisComplete\":true,\"changeClass\":\"protected\",\"changedPaths\":[\"packages/sdk/package.json\",\"packages/sdk/src/client.ts\"],\"defaultBranch\":\"main\",\"targetBranch\":\"main\"},\"outcome\":\"approval_required\",\"ruleId\":\"hold.repo_policy_rule\",\"ruleVersion\":\"release-approvers@2c4e6a8b0d1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c\"},\"expiresAt\":\"2026-10-06T10:45:00.000Z\"},\"policyAuthorization\":{\"branch\":\"main\",\"evaluatorVersion\":\"rules-v1\",\"headSha\":\"7f2a4c6e8b0d1f3a5c7e9b1d3f5a7c9e0b2d4f6a\",\"policyBlob\":\"4d6f8a0c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f\",\"recordedDecisions\":[{\"at\":\"2026-10-06T10:21:00.000Z\",\"displayName\":\"alice-example\"},{\"at\":\"2026-10-06T10:30:00.000Z\",\"displayName\":\"bob-example\"}],\"version\":3},\"projection\":\"deploy_gate/v1\",\"scope\":{\"artifact_digest\":\"sha256:0d4f7a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f\",\"capability\":\"deploy:production\",\"commitSha\":\"7f2a4c6e8b0d1f3a5c7e9b1d3f5a7c9e0b2d4f6a\",\"env\":\"production\",\"ref\":\"refs/pull/1204/merge\",\"repo\":\"acme/open-sdk\",\"visibility\":\"public\",\"workflow\":\".github/workflows/release.yml\"}}",
+    "reasonCodes": "[\"DEPLOY_GATE_APPROVED\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:e6bef284cb4ee35c74dd6be6c71ed5963d75a2b521b824dd062d9e39025d8dbb",
+    "resolutionType": "allow_once",
+    "runId": "run_18533987102",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED"
+  },
+  "expected": "verified",
+  "projection": {
+    "action": {
+      "operation": "deploy",
+      "tool": "github-actions"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "REVERSIBLE"
+    },
+    "intent": {
+      "category": "deployment",
+      "name": "deploy_gate_approval"
+    },
+    "metadata": {
+      "deployGateRequestId": "vec08v3publicrepo0000001"
+    },
+    "policy": {
+      "authorizationBinding": {
+        "branch": "main",
+        "commitSha": "2c4e6a8b0d1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c",
+        "path": ".permission-protocol.yml",
+        "prNumber": 1204,
+        "repository": "acme/open-sdk",
+        "rulesHash": "a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3",
+        "version": 1
+      },
+      "decision": {
+        "matchedInputs": {
+          "analysisComplete": true,
+          "changeClass": "protected",
+          "changedPaths": [
+            "packages/sdk/package.json",
+            "packages/sdk/src/client.ts"
+          ],
+          "defaultBranch": "main",
+          "targetBranch": "main"
+        },
+        "outcome": "approval_required",
+        "ruleId": "hold.repo_policy_rule",
+        "ruleVersion": "release-approvers@2c4e6a8b0d1f3a5c7e9b1d3f5a7c9e2b4d6f8a0c"
+      },
+      "expiresAt": "2026-10-06T10:45:00.000Z"
+    },
+    "policyAuthorization": {
+      "branch": "main",
+      "evaluatorVersion": "rules-v1",
+      "headSha": "7f2a4c6e8b0d1f3a5c7e9b1d3f5a7c9e0b2d4f6a",
+      "policyBlob": "4d6f8a0c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f",
+      "recordedDecisions": [
+        {
+          "at": "2026-10-06T10:21:00.000Z",
+          "displayName": "alice-example"
+        },
+        {
+          "at": "2026-10-06T10:30:00.000Z",
+          "displayName": "bob-example"
+        }
+      ],
+      "version": 3
+    },
+    "projection": "deploy_gate/v1",
+    "scope": {
+      "artifact_digest": "sha256:0d4f7a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f",
+      "capability": "deploy:production",
+      "commitSha": "7f2a4c6e8b0d1f3a5c7e9b1d3f5a7c9e0b2d4f6a",
+      "env": "production",
+      "ref": "refs/pull/1204/merge",
+      "repo": "acme/open-sdk",
+      "visibility": "public",
+      "workflow": ".github/workflows/release.yml"
+    }
+  }
+}

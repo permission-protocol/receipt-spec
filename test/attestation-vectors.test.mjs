@@ -103,6 +103,22 @@ test("section 9.2 consistency rules", () => {
   assert.match(attestationClaimProblem({ ...base, outcome: "succeeded", startedAt: "2026-09-01T00:00:00.000Z" }), /start and a finish/);
   assert.match(attestationClaimProblem({ ...base, outcome: "failed", startedAt: "2026-09-01T00:00:01.000Z", finishedAt: "2026-09-01T00:00:00.000Z" }), /before/);
   assert.equal(attestationClaimProblem({ ...base, outcome: "unknown" }), null);
+  // Times are ISO 8601 instants exactly as the issuer writes them, and outputHash a string: nothing is coerced.
+  const times = { startedAt: "2026-09-01T00:00:00.000Z", finishedAt: "2026-09-01T00:00:01.000Z" };
+  assert.equal(attestationClaimProblem({ ...base, outcome: "succeeded", ...times, outputHash: outputHash({}) }), null);
+  assert.equal(attestationClaimProblem({ ...base, outcome: "unknown", startedAt: times.startedAt }), null);
+  for (const [claims, pattern] of [
+    [{ outcome: "succeeded", startedAt: "not a date", finishedAt: "also not" }, /startedAt is not an ISO 8601 instant/],
+    [{ outcome: "succeeded", startedAt: null, finishedAt: null }, /startedAt is not an ISO 8601 instant/],
+    [{ outcome: "failed", startedAt: "2026-09-01T00:00:00Z", finishedAt: times.finishedAt }, /startedAt is not an ISO 8601 instant/],
+    [{ outcome: "failed", startedAt: "2026-02-30T00:00:00.000Z", finishedAt: times.finishedAt }, /startedAt is not an ISO 8601 instant/],
+    [{ outcome: "failed", startedAt: times.startedAt, finishedAt: 0 }, /finishedAt is not an ISO 8601 instant/],
+    [{ outcome: "unknown", startedAt: "soon" }, /startedAt is not an ISO 8601 instant/],
+    [{ outcome: "succeeded", ...times, outputHash: [outputHash({})] }, /outputHash is not sha256/],
+    [{ outcome: "succeeded", ...times, outputHash: { toString: null } }, /outputHash is not sha256/],
+  ]) {
+    assert.match(attestationClaimProblem({ ...base, ...claims }) ?? "accepted", pattern, JSON.stringify(claims));
+  }
 });
 
 test("outputHash is sha256 over the canonical (sorted-key) JSON of the output", () => {
