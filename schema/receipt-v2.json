@@ -96,7 +96,7 @@
     },
     "deciderAuthMethod": {
       "type": "string",
-      "enum": ["session", "api_key", "anonymous_demo", "policy"],
+      "enum": ["session", "session_stepup_webauthn", "session_reauth", "api_key", "anonymous_demo", "policy"],
       "description": "Credential lane of the decider. Absent when the mint path recorded null (the webhook auto-clearance path, deciderId system/pp-engine)."
     },
     "resolutionType": {

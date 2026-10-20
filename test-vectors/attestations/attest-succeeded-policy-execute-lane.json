@@ -1,0 +1,33 @@
+{
+  "description": "succeeded: the router signed the policy clearance, ran the read once, and attested what the adapter returned. outputHash commits to the canonical output; the output itself is not in the attestation.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/lib/permission-router/authorized-execution.ts (executeAuthorized), execution-attestation.ts",
+  "receipt_vector": "approve-policy-execute-lane.json",
+  "attestation_artifact": {
+    "approval_receipt_id": "cmvec02policyclear00000000001",
+    "outcome": "succeeded",
+    "attestation_version": 1,
+    "canonicalization": "attest_v1",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "5cc2c1c4d51657d963505ea1dafd489a992be3755a77ae387c4e0eaeaf097d99",
+    "signature_b64": "l9Wq81sT1DDi9zRxJhyPkVvQWW5iUGCXSbA1rM6SKqemwIaBreXLw84rovBxeZ31PLLdUMw5qEIIDSabIPj0BQ==",
+    "payload_bytes_b64": "eyJhcHByb3ZhbFJlY2VpcHRJZCI6ImNtdmVjMDJwb2xpY3ljbGVhcjAwMDAwMDAwMDAxIiwiYXR0ZXN0YXRpb25WZXJzaW9uIjoxLCJjYW5vbmljYWxpemF0aW9uIjoiYXR0ZXN0X3YxIiwiY3JlYXRlZEF0IjoiMjAyNi0wOS0wMVQxNDowNTowMC41MTJaIiwiZmluaXNoZWRBdCI6IjIwMjYtMDktMDFUMTQ6MDU6MDAuNDgwWiIsIm91dGNvbWUiOiJzdWNjZWVkZWQiLCJvdXRwdXRIYXNoIjoic2hhMjU2OjgwNDBkYTUwYTcyY2ZlYzU5M2NmNTkxMjJjZWNjZjc4YWY4ZTcyODQwYmFlYWZkNWI3MmRkODEyZWU1YTE3ZjciLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJwcC10ZXN0LTIwMjYtcTIiLCJzdGFydGVkQXQiOiIyMDI2LTA5LTAxVDE0OjA1OjAwLjEyMFoiLCJ0b29sQ2FsbElkIjoidGNfdmVjX2xlZGdlcl9yZWFkXzAwMDEifQ==",
+    "issued_at": "2026-09-01T14:05:00.512Z"
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify the receipt named by approval_receipt_id first (SPEC.md section 6.2). Then verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under attest_v1, check approvalReceiptId equals that receipt's id, and verify the Ed25519 signature over the digest with the public key for key_id.",
+  "attestation": {
+    "approvalReceiptId": "cmvec02policyclear00000000001",
+    "attestationVersion": 1,
+    "canonicalization": "attest_v1",
+    "createdAt": "2026-09-01T14:05:00.512Z",
+    "finishedAt": "2026-09-01T14:05:00.480Z",
+    "outcome": "succeeded",
+    "outputHash": "sha256:8040da50a72cfec593cf59122ceccf78af8e72840baeafd5b72dd812ee5a17f7",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "startedAt": "2026-09-01T14:05:00.120Z",
+    "toolCallId": "tc_vec_ledger_read_0001"
+  }
+}

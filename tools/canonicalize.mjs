@@ -74,3 +74,47 @@ export function canonicalBytes(receipt, canonicalization) {
 export function signingDigest(bytes) {
   return createHash("sha256").update(bytes).digest();
 }
+
+// ---------------------------------------------------------------------------
+// Execution attestations (SPEC.md section 9). `attest_v1` is the attestation's
+// own canonicalization id, not a receipt version. Same byte rules as above,
+// its own frozen field list. Byte-for-byte equivalent to the hosted service's
+// canonicalizeAttestation (app repo,
+// src/lib/permission-router/execution-attestation.ts).
+// ---------------------------------------------------------------------------
+
+export const ATTESTATION_SIGNED_FIELDS_V1 = [
+  "approvalReceiptId",
+  "outcome",
+  "toolCallId",
+  "outputHash",
+  "startedAt",
+  "finishedAt",
+  "attestationVersion",
+  "canonicalization",
+  "signatureAlg",
+  "signatureKeyId",
+  "createdAt",
+];
+
+/** Canonical JSON text of an attestation's signed field set (attest_v1). */
+export function canonicalizeAttestation(attestation) {
+  if (attestation.canonicalization !== "attest_v1") {
+    throw new Error(`unsupported attestation canonicalization: ${attestation.canonicalization}`);
+  }
+  const canonical = {};
+  for (const field of ATTESTATION_SIGNED_FIELDS_V1) {
+    const value = attestation[field];
+    if (value !== undefined && value !== null) canonical[field] = serializeValue(value);
+  }
+  return JSON.stringify(sortKeys(canonical));
+}
+
+export function attestationBytes(attestation) {
+  return Buffer.from(canonicalizeAttestation(attestation), "utf8");
+}
+
+/** outputHash: "sha256:" + hex SHA-256 of the canonical JSON of the adapter output. */
+export function outputHash(output) {
+  return `sha256:${createHash("sha256").update(JSON.stringify(sortKeys(output)), "utf8").digest("hex")}`;
+}

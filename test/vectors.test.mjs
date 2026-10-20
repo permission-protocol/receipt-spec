@@ -1,4 +1,4 @@
-// Conformance tests for the test vectors (SPEC.md section 11).
+// Conformance tests for the test vectors (SPEC.md section 12).
 //
 //   node --test "test/*.test.mjs"
 //
