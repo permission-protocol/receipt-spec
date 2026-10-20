@@ -1,0 +1,5 @@
+# The test vectors, conformance/expected-canonical-bytes.txt and the SPEC.md
+# allowlist tables are compared byte for byte. Check every text file out with
+# LF on every platform, so a Windows clone with core.autocrlf=true does not
+# rewrite them into a failing suite.
+* text=auto eol=lf

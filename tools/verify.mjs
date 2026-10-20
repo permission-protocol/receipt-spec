@@ -33,7 +33,8 @@
 // summary or binding is not the committed one, or the projection does not
 // rebuild. Attestations add 5, 6 and 7 (section 9.5).
 import { createPublicKey, verify } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import {
   CanonicalizationUnsupportedError,
   RECEIPT_BINDING_FIELDS,
@@ -508,7 +509,11 @@ function usage(message) {
   process.exit(64);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run as a command only when this file is the entry point. pathToFileURL and
+// realpathSync build the same URL Node gives the entry module on every
+// platform; a hand-built `file://${argv[1]}` never matches on Windows, where
+// the command then ran nothing and exited 0, the code for "verified".
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const args = process.argv.slice(2);
   const flags = {};
   const positional = [];
