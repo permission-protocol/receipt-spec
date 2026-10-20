@@ -1,0 +1,95 @@
+{
+  "description": "jcs_v3 under deploy_gate/v2, the projection the deploy-gate lane signs from permission-protocol/app#691. APPROVED by a named human for a private repository, after a passkey step-up, on a hold by the workspace's own protected-path rule. scope.visibility is private, so the projection omits every repository-identity (†) path and every policy-rule-identity (‡) path: no policy.decision.ruleId or ruleVersion (which here names the customer's rule, wire-transfer-limits, at its policy commit). The decision outcome, the change class, the commit SHA, the policy commit and the rules hash stay public. A verifier reports the rule as withheld and never names policyVersion in its place. The committed request keeps the rule; opening it (test-vectors/v3/openings/approve-human-deploy-gate-v2-private-repo.request.json) shows hold.repo_protected_path@wire-transfer-limits@<policy commit>.",
+  "generated_by": "node tools/generate-vectors.mjs",
+  "mirrors": "app src/app/api/v1/deploy-requests/[requestId]/approve/route.ts with PP_RECEIPT_V3=on, deploy-gate lane on deploy_gate/v2; signing/public-projection.ts",
+  "artifact": {
+    "receipt_id": "rcpt_dg_vec14v2privaterepo000001",
+    "status": "APPROVED",
+    "receipt_version": 3,
+    "canonicalization": "jcs_v3",
+    "key_id": "pp-test-2026-q2",
+    "alg": "ed25519",
+    "signed_payload_hash": "0d6ceedf14f8ba99436970a49e54b566c61592304ff278c392fc0ce2bf858b95",
+    "signature_b64": "I3JdD6DlxOLht49mnOHWdttlT+C9yQoFfValiI7nklifgGNqByvbxwEkXVwMiDpb4WuHombth9vitBVz+3BVBA==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiZ2l0aHViLWFjdGlvbnMiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YzIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0wOFQxNDowMDowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJzZXNzaW9uX3N0ZXB1cF93ZWJhdXRobiIsImRlY2lkZXJEaXNwbGF5IjoiYWxpY2UtZXhhbXBsZSIsImRlY2lkZXJJZCI6InVzZXI6dXNyX3ZlY19hbGljZV8wMDAwMDAwMSIsImRlY2lkZXJQcm9vZiI6eyJhdXRoZW50aWNhdG9yRGF0YUhhc2giOiI1Nzg4ZWQ0YmNiZjMyNmYxMjUyMzRlYjQ2ZTU1NTk2ZGVkMmFjZjczNmI1MmY0MmZjMzlkZWZmZjFhNWE0ZDAwIiwiY2hhbGxlbmdlSGFzaCI6ImE1Y2QzOTdlOWYzNGNhNjdkYmRiZTg1YmEzZTQwOTZlMzllYzFkMjg3NzgzNmZiZTlmNTMwYzkyNzcwODU3YTkiLCJjcmVkZW50aWFsSWRIYXNoIjoiMDc5NTY0MTcyYzBmNmQ4MTc3MjQ4MjdjOWI4NWYzODc2OWZlZjE2ZmNiZDU4NDM4YzZkY2U4NzcxYWU2YmFjNCIsIm1ldGhvZCI6IndlYmF1dGhuIiwib3JpZ2luIjoiaHR0cHM6Ly9hcHAucGVybWlzc2lvbnByb3RvY29sLmNvbSIsInJldmlld0dlbmVyYXRpb24iOjEsInJwSWQiOiJhcHAucGVybWlzc2lvbnByb3RvY29sLmNvbSIsInVzZXJWZXJpZmllZCI6dHJ1ZSwidmVyaWZpZWRBdCI6IjIwMjYtMTAtMDhUMTM6NTk6NDguMDAwWiJ9LCJleHBpcmVzQXQiOiIyMDI2LTEwLTA4VDE0OjE1OjAwLjAwMFoiLCJpZCI6InJjcHRfZGdfdmVjMTR2MnByaXZhdGVyZXBvMDAwMDAxIiwicG9saWN5VmVyc2lvbiI6ImRlcGxveS1nYXRlLXYxIiwicHVibGljUHJvamVjdGlvbkpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcImRlcGxveVwiLFwidG9vbFwiOlwiZ2l0aHViLWFjdGlvbnNcIn0sXCJjb250ZXh0XCI6e1wiZW52aXJvbm1lbnRcIjpcInByb2R1Y3Rpb25cIixcInJldmVyc2liaWxpdHlcIjpcIlJFVkVSU0lCTEVcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwiZGVwbG95bWVudFwiLFwibmFtZVwiOlwiZGVwbG95X2dhdGVfYXBwcm92YWxcIn0sXCJtZXRhZGF0YVwiOntcImRlcGxveUdhdGVSZXF1ZXN0SWRcIjpcInZlYzE0djJwcml2YXRlcmVwbzAwMDAwMVwifSxcInBvbGljeVwiOntcImF1dGhvcml6YXRpb25CaW5kaW5nXCI6e1wiY29tbWl0U2hhXCI6XCI2ZDhmMGIyZDRmNmE4YzBlMmI0ZDZmOGEwYzJlNGI2ZDhmMGEyYzRlXCIsXCJwYXRoXCI6XCIucGVybWlzc2lvbi1wcm90b2NvbC55bWxcIixcInJ1bGVzSGFzaFwiOlwiYjNkNWY3YTljMWUzYjVkN2Y5YTFjM2U1YjdkOWYxYTNjNWU3YjlkMWYzYTVjN2U5YjFkM2Y1YTdjOWUxYjNkNVwiLFwidmVyc2lvblwiOjF9LFwiZGVjaXNpb25cIjp7XCJtYXRjaGVkSW5wdXRzXCI6e1wiYW5hbHlzaXNDb21wbGV0ZVwiOnRydWUsXCJjaGFuZ2VDbGFzc1wiOlwicmVwb19wb2xpY3lcIn0sXCJvdXRjb21lXCI6XCJhcHByb3ZhbF9yZXF1aXJlZFwifSxcImV4cGlyZXNBdFwiOlwiMjAyNi0xMC0wOFQxNDoxNTowMC4wMDBaXCJ9LFwicHJvamVjdGlvblwiOlwiZGVwbG95X2dhdGUvdjJcIixcInNjb3BlXCI6e1wiY2FwYWJpbGl0eVwiOlwiZGVwbG95OnByb2R1Y3Rpb25cIixcImNvbW1pdFNoYVwiOlwiNWI3ZDlmMWEzYzVlN2E5YjFkM2Y1YTdjOWUxYjNkNWY3YTljMWUzYlwiLFwiZW52XCI6XCJwcm9kdWN0aW9uXCIsXCJ2aXNpYmlsaXR5XCI6XCJwcml2YXRlXCJ9fSIsInJlYXNvbkNvZGVzIjoiW1wiREVQTE9ZX0dBVEVfQVBQUk9WRURcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MywicmVxdWVzdENvbW1pdG1lbnQiOiJzaGEyNTY6MGEzZmFiZjdkODgxOTZmNTViOWNhZTlmYTU3N2FlN2U2NmM4NzRjYTM4OTI3MzY0YTQxZDBlNGZiZDNkMGRiNyIsInJlc29sdXRpb25UeXBlIjoiYWxsb3dfb25jZSIsInJ1bklkIjoicnVuXzE4NjIwMzQ0MTA1Iiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoicHAtdGVzdC0yMDI2LXEyIiwic3RhdHVzIjoiQVBQUk9WRUQifQ==",
+    "issued_at": "2026-10-08T14:00:00.000Z",
+    "expires_at": "2026-10-08T14:15:00.000Z",
+    "redeemed_at": null
+  },
+  "keys_url": "test-vectors/keys.json",
+  "verification_hint": "Verify SHA-256(payload_bytes) equals signed_payload_hash, re-canonicalize the payload under jcs_v3, verify the Ed25519 signature over the digest with the public key for key_id, then check that publicProjectionJson is within its tag's allowlist and that deciderProof agrees with deciderAuthMethod (SPEC.md section 6.7). The request holder also opens requestCommitment with the request text and salt, checks the stated summary against the committed receiptSummary, and checks the stated companyId, idemKey and inputHash against the committed receiptBinding.",
+  "receipt": {
+    "agentId": "github-actions",
+    "attributionConfidence": "credentialed",
+    "canonicalization": "jcs_v3",
+    "createdAt": "2026-10-08T14:00:00.000Z",
+    "deciderAuthMethod": "session_stepup_webauthn",
+    "deciderDisplay": "alice-example",
+    "deciderId": "user:usr_vec_alice_00000001",
+    "deciderProof": {
+      "authenticatorDataHash": "5788ed4bcbf326f125234eb46e55596ded2acf736b52f42fc39defff1a5a4d00",
+      "challengeHash": "a5cd397e9f34ca67dbdbe85ba3e4096e39ec1d2877836fbe9f530c92770857a9",
+      "credentialIdHash": "079564172c0f6d817724827c9b85f38769fef16fcbd58438c6dce8771ae6bac4",
+      "method": "webauthn",
+      "origin": "https://app.permissionprotocol.com",
+      "reviewGeneration": 1,
+      "rpId": "app.permissionprotocol.com",
+      "userVerified": true,
+      "verifiedAt": "2026-10-08T13:59:48.000Z"
+    },
+    "expiresAt": "2026-10-08T14:15:00.000Z",
+    "id": "rcpt_dg_vec14v2privaterepo000001",
+    "policyVersion": "deploy-gate-v1",
+    "publicProjectionJson": "{\"action\":{\"operation\":\"deploy\",\"tool\":\"github-actions\"},\"context\":{\"environment\":\"production\",\"reversibility\":\"REVERSIBLE\"},\"intent\":{\"category\":\"deployment\",\"name\":\"deploy_gate_approval\"},\"metadata\":{\"deployGateRequestId\":\"vec14v2privaterepo000001\"},\"policy\":{\"authorizationBinding\":{\"commitSha\":\"6d8f0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e\",\"path\":\".permission-protocol.yml\",\"rulesHash\":\"b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5\",\"version\":1},\"decision\":{\"matchedInputs\":{\"analysisComplete\":true,\"changeClass\":\"repo_policy\"},\"outcome\":\"approval_required\"},\"expiresAt\":\"2026-10-08T14:15:00.000Z\"},\"projection\":\"deploy_gate/v2\",\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"5b7d9f1a3c5e7a9b1d3f5a7c9e1b3d5f7a9c1e3b\",\"env\":\"production\",\"visibility\":\"private\"}}",
+    "reasonCodes": "[\"DEPLOY_GATE_APPROVED\"]",
+    "receiptVersion": 3,
+    "requestCommitment": "sha256:0a3fabf7d88196f55b9cae9fa577ae7e66c874ca38927364a41d0e4fbd3d0db7",
+    "resolutionType": "allow_once",
+    "runId": "run_18620344105",
+    "scope": "production",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "pp-test-2026-q2",
+    "status": "APPROVED"
+  },
+  "expected": "verified",
+  "projection": {
+    "action": {
+      "operation": "deploy",
+      "tool": "github-actions"
+    },
+    "context": {
+      "environment": "production",
+      "reversibility": "REVERSIBLE"
+    },
+    "intent": {
+      "category": "deployment",
+      "name": "deploy_gate_approval"
+    },
+    "metadata": {
+      "deployGateRequestId": "vec14v2privaterepo000001"
+    },
+    "policy": {
+      "authorizationBinding": {
+        "commitSha": "6d8f0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e",
+        "path": ".permission-protocol.yml",
+        "rulesHash": "b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5",
+        "version": 1
+      },
+      "decision": {
+        "matchedInputs": {
+          "analysisComplete": true,
+          "changeClass": "repo_policy"
+        },
+        "outcome": "approval_required"
+      },
+      "expiresAt": "2026-10-08T14:15:00.000Z"
+    },
+    "projection": "deploy_gate/v2",
+    "scope": {
+      "capability": "deploy:production",
+      "commitSha": "5b7d9f1a3c5e7a9b1d3f5a7c9e1b3d5f7a9c1e3b",
+      "env": "production",
+      "visibility": "private"
+    }
+  }
+}

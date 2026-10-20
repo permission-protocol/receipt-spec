@@ -46,7 +46,7 @@
     "publicProjectionJson": {
       "type": "string",
       "minLength": 2,
-      "description": "The issuer-built public projection of the request, as canonical JSON text (recursively sorted keys, no whitespace), carrying its allowlist tag in the top-level projection key: deploy_gate/v1, execute/v1 or revocation/v1 (SPEC.md sections 3.6 and 3.7). A string, not an object, so its bytes cannot drift with a re-serialization."
+      "description": "The issuer-built public projection of the request, as canonical JSON text (recursively sorted keys, no whitespace), carrying its allowlist tag in the top-level projection key: deploy_gate/v1, deploy_gate/v2, execute/v1 or revocation/v1 (SPEC.md sections 3.6 and 3.7). A string, not an object, so its bytes cannot drift with a re-serialization."
     },
     "status": {
       "type": "string",

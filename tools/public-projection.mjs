@@ -16,12 +16,18 @@
 //
 // CONTRACT: a tag's allowlist is frozen once a receipt is signed with it, under
 // the same rule as a canonicalization version. A changed allowlist is a new
-// tag (`deploy_gate/v2`), never an edit to a shipped one. A verifier that does
-// not know a tag fails closed (PROJECTION_UNSUPPORTED).
+// tag (`deploy_gate/v2` is `deploy_gate/v1` with the policy rule identity
+// withheld for a non-public repository), never an edit to a shipped one. A
+// verifier that does not know a tag fails closed (PROJECTION_UNSUPPORTED).
 
-/** The tag each issuer lane signs. */
+/**
+ * The tag each issuer lane signs today. The deploy-gate lane signs
+ * deploy_gate/v2 (SPEC.md section 3.7); deploy_gate/v1 receipts keep their tag
+ * and verify under it. Everything that rebuilds or checks a signed projection
+ * reads the tag from the projection, never from this map.
+ */
 export const PROJECTION_TAG_BY_LANE = Object.freeze({
-  deploy_gate: "deploy_gate/v1",
+  deploy_gate: "deploy_gate/v2",
   execute: "execute/v1",
   revocation: "revocation/v1",
 });
@@ -34,8 +40,9 @@ const REVERSIBILITY = ["REVERSIBLE", "PARTIALLY_REVERSIBLE", "IRREVERSIBLE"];
 const EXECUTE_ENVIRONMENTS = ["development", "staging", "production"];
 
 // Field flags: `id` an identifier slot; `oneOf` an enumerated slot;
-// `repositoryIdentity` (marked † in SPEC.md) copied only when the request's
-// scope.visibility is exactly "public".
+// `repositoryIdentity` (marked † in SPEC.md) and `policyIdentity` (marked ‡,
+// deploy_gate/v2 only) copied only when the request's scope.visibility is
+// exactly "public".
 //
 // recordedDecisions[] carries displayName and at, never authMethod: only the
 // final signer's step-up is signed (deciderProof, SPEC.md 3.8), so an earlier
@@ -112,6 +119,34 @@ const DEPLOY_GATE_V1 = [
   { path: "deploymentRenewal.recordedDecisions[].at" },
 ];
 
+/**
+ * The matched policy rule's identity (‡): its id and version, on the decision,
+ * a denial and an override. A customer rule id names an internal control, and
+ * `ruleVersion` carries it too (`<rule id>@<policy commit>`).
+ */
+const POLICY_IDENTITY_PATHS = [
+  "policy.decision.ruleId",
+  "policy.decision.ruleVersion",
+  "metadata.denial.ruleId",
+  "metadata.override.ruleId",
+  "metadata.override.ruleVersion",
+];
+
+/**
+ * deploy_gate/v2: deploy_gate/v1 with the policy rule identity (‡) published
+ * only for a public repository (Rod, 2026-10-08, F-2 Q-F2-4): rule ids can
+ * reveal a workspace's internal controls, so a private repository's receipt
+ * signs its decision outcome without them; they stay in the committed request,
+ * which the owner's evidence opens. Every other path, slot and
+ * repository-identity mark, and their order, is deploy_gate/v1's.
+ */
+const DEPLOY_GATE_V2 = DEPLOY_GATE_V1.map((field) => (POLICY_IDENTITY_PATHS.includes(field.path) ? { ...field, policyIdentity: true } : field));
+for (const path of POLICY_IDENTITY_PATHS) {
+  if (!DEPLOY_GATE_V1.some((field) => field.path === path)) {
+    throw new Error(`deploy_gate/v2: policy identity path "${path}" is not a deploy_gate/v1 path`);
+  }
+}
+
 const EXECUTE_V1 = [
   { path: "intent.name", id: true },
   { path: "intent.category", id: true },
@@ -158,9 +193,15 @@ function compile(tag, fields) {
 /** The frozen allowlist of every shipped tag, in the order SPEC.md section 3.7 lists it. */
 export const PROJECTION_ALLOWLISTS = Object.freeze({
   "deploy_gate/v1": compile("deploy_gate/v1", DEPLOY_GATE_V1),
+  "deploy_gate/v2": compile("deploy_gate/v2", DEPLOY_GATE_V2),
   "execute/v1": compile("execute/v1", EXECUTE_V1),
   "revocation/v1": compile("revocation/v1", REVOCATION_V1),
 });
+
+/** Whether a tag withholds the policy rule identity (‡) of a non-public repository. */
+export function tagWithholdsPolicyIdentity(tag) {
+  return isProjectionTag(tag) && PROJECTION_ALLOWLISTS[tag].some((field) => field.policyIdentity);
+}
 
 export class PublicProjectionError extends Error {
   constructor(code, message) {
@@ -288,7 +329,7 @@ export function buildPublicProjection(tag, requestJson) {
   const projection = {};
   const created = new WeakSet();
   for (const field of PROJECTION_ALLOWLISTS[tag]) {
-    if (field.repositoryIdentity && !repositoryPublic) continue;
+    if ((field.repositoryIdentity || field.policyIdentity) && !repositoryPublic) continue;
     copyPath(request, projection, field.segments, field, created);
   }
   prune(projection, created);
@@ -340,6 +381,9 @@ function leafProblem(path, value, field, repositoryPublic) {
   if (field.repositoryIdentity && !repositoryPublic) {
     return `${path} is repository identity and scope.visibility is not "public"`;
   }
+  if (field.policyIdentity && !repositoryPublic) {
+    return `${path} is policy rule identity and scope.visibility is not "public"`;
+  }
   if (field.id) {
     return typeof value === "string" && PROJECTION_IDENTIFIER_PATTERN.test(value) ? null : `${path} is an identifier slot and holds a non-identifier`;
   }
@@ -388,9 +432,9 @@ function containerProblem(path, value, tree, repositoryPublic) {
  * Null when the signed projection text could have been produced by the build
  * rule for its tag; otherwise a description of the first violation:
  * not canonical JSON, a key outside the allowlist, a slot value that breaks
- * its rule, a repository-identity (†) path without scope.visibility "public",
- * or a container shape the build rule never emits. The tag must be known
- * (check it with isProjectionTag first).
+ * its rule, a repository-identity (†) or policy-rule-identity (‡) path without
+ * scope.visibility "public", or a container shape the build rule never emits.
+ * The tag must be known (check it with isProjectionTag first).
  */
 export function projectionProblem(publicProjectionJson) {
   let projection;

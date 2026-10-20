@@ -12,3 +12,7 @@ test-vectors/v3/outside-allowlist-approve-human-execute-lane-refund.json ab03b29
 test-vectors/v3/decider-proof-mismatch-approve-human-execute-lane-refund.json c53c4694bbba90d724b69d3285b6ed617c1646e58415c5d74e249c5ec96e5ca1
 test-vectors/v3/non-canonical-proof-approve-human-execute-lane-refund.json 63b69c1569c2736c66a7fb6827ff225d2ae6d15f7dc78ae3609d6c6a1a78abba
 test-vectors/v3/no-binding-approve-human-execute-lane-refund.json 9fdf2e6ed2c8c9ca40e32bec649b28096139b9af0a6df58b3fcc16dd0a4dc09c
+test-vectors/v3/approve-human-deploy-gate-v2-private-repo.json 0d6ceedf14f8ba99436970a49e54b566c61592304ff278c392fc0ce2bf858b95
+test-vectors/v3/approve-human-deploy-gate-v2-public-repo.json 798306b4a00517afc1c2d94c577614fb1ee9b89f7ae314464331be9b4bfbdc5d
+test-vectors/v3/deny-policy-deploy-gate-v2-private-repo.json 829f6609aa51ff1cdec4bd0bd388e57f629838e3f06980e3477c285128dd0a3d
+test-vectors/v3/published-rule-approve-human-deploy-gate-v2-private-repo.json 2f97bf86bfdde78dedcfac66bd4e1d1ae5ccf39ce71cffe5ddbb281038f52067
