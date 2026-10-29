@@ -1,0 +1,26 @@
+{
+  "description": "Key set for the MCP Guard vectors, in the shape `mcp-guard keys init` writes (issuer local:mcp-guard). Test keys derived from fixed seeds; they sign nothing outside this repository. `trust` lists the --trust value for each key (KEY_ID=sha256:<SHA-256 of the raw 32-byte key>); it is not part of the key-set shape.",
+  "issuer": "local:mcp-guard",
+  "keys": [
+    {
+      "key_id": "mcpg-c290ad54bee2c31d",
+      "alg": "ed25519",
+      "public_key_b64": "TZeJSS3KkXk51SsMfvt0eEGUrzD1H88Cyd476+bfpbw=",
+      "status": "active",
+      "created_at": "2026-10-29T00:00:00.000Z",
+      "revoked_at": null
+    },
+    {
+      "key_id": "mcpg-demo-5787f378b3f39ff4",
+      "alg": "ed25519",
+      "public_key_b64": "fBhyMwR/JuvLe+MhWW+87XnTaQdzu1s2ode/z5MJ6wY=",
+      "status": "active",
+      "created_at": "2026-10-29T00:00:00.000Z",
+      "revoked_at": null
+    }
+  ],
+  "trust": [
+    "mcpg-c290ad54bee2c31d=sha256:c290ad54bee2c31d33bcc939ad6437188957ceba9b1ace7ae03395fb125bc44d",
+    "mcpg-demo-5787f378b3f39ff4=sha256:5787f378b3f39ff48415373a087ab07a1bbf201f61045598c5b5034c40c45bf5"
+  ]
+}

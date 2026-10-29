@@ -1,0 +1,53 @@
+{
+  "description": "APPROVED in a demo run (`mcp-guard demo` and the demo scripts): signed by a demo key (mcpg-demo-…), scope demo. Authorizes nothing real; gates refuse it.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard example/test.sh, scripts/demo-keys.mjs, src/issuer.ts",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtpm16o_718293a4b5c6",
+    "status": "APPROVED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-demo-5787f378b3f39ff4",
+    "alg": "ed25519",
+    "signed_payload_hash": "9c33cf65b67dd5ea156a34ea9cd548597a4b6caa03db46d71526435bb5db33f1",
+    "signature_b64": "K24K3F61Uf9WNuQiti8Vx2OIJ5KNL+2egXm437a6QtqCzgsN2HlDBXZ4B2T6iGObvJWVrL90QKsUBNCalZsGAQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJoZXVyaXN0aWMiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNTo0MDowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJsb2NhbF9jb25zb2xlIiwiZGVjaWRlckRpc3BsYXkiOiJkZW1vIiwiZGVjaWRlcklkIjoibG9jYWw6ZGVtbyIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMjlUMTY6NDA6MDAuMDAwWiIsImlkIjoicmNwdF9tZ19tdnRwbTE2b183MTgyOTNhNGI1YzYiLCJpZGVtS2V5IjoibWNwLWd1YXJkOjUxOTRhYzVjLTcyZDQtNDVhMS04M2NlLThhOWJhY2JkY2VkZiIsImlucHV0SGFzaCI6InNoYTI1NjpjOTVmMzBhYzdiYzFlNGNiMDIwY2VlZDYyY2MxYWI2M2U1MDMyNGZhNzY3OWQ1NzMwZjc2NDJmOWNmYTg3YTA5IiwicG9saWN5VmVyc2lvbiI6Im1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNTgiLCJyZWFzb25Db2RlcyI6IltcIlJVTEVfTUFUQ0hFRDplbWFpbFwiLFwiT1BFUkFUT1JfQVBQUk9WRURcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MiwicmVxdWVzdEpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcInRvb2xzL2NhbGxcIixcInJlc291cmNlXCI6XCJpbmZyYS1tY3BcIixcInRvb2xcIjpcInNlbmRfZW1haWxcIn0sXCJjb250ZXh0XCI6e1wibW9kZVwiOlwiZW5mb3JjZVwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCIsXCJ0cmFuc3BvcnRcIjpcInN0ZGlvXCJ9LFwiaGFzaGVzXCI6e1wiaW5wdXRIYXNoXCI6XCJzaGEyNTY6Yzk1ZjMwYWM3YmMxZTRjYjAyMGNlZWQ2MmNjMWFiNjNlNTAzMjRmYTc2NzlkNTczMGY3NjQyZjljZmE4N2EwOVwifSxcImludGVudFwiOntcImNhdGVnb3J5XCI6XCJtY3BfdG9vbF9jYWxsXCIsXCJuYW1lXCI6XCJtY3BfZ3VhcmRfZGVjaXNpb25cIn0sXCJwb2xpY3lcIjp7XCJkZWNpc2lvblwiOntcIm91dGNvbWVcIjpcImFwcHJvdmVkXCIsXCJydWxlSWRcIjpcImVtYWlsXCIsXCJydWxlVmVyc2lvblwiOlwibWNwLWd1YXJkLWNvbmZpZzpzaGEyNTY6NjQ4MDRjYTdjN2FjZDhmZDFkODA1YWQ3MzVmODFmNDViOGY5NDJhNDlmNTdkZjJjOTRlZDAwNDY1NDRlNWQ1OFwifX19IiwicmVzb2x1dGlvblR5cGUiOiJhbGxvd19vbmNlIiwicmlza1RpZXIiOiJtZWRpdW0iLCJydW5JZCI6InJ1bl81ZjBjMmE5ZTQxYjdkM2M4Iiwic2NvcGUiOiJkZW1vIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoibWNwZy1kZW1vLTU3ODdmMzc4YjNmMzlmZjQiLCJzdGF0dXMiOiJBUFBST1ZFRCIsInN1bW1hcnkiOiJNQ1AgR3VhcmQgYXBwcm92ZWQgXCJzZW5kX2VtYWlsXCIgYnkgZGVtbyJ9",
+    "issued_at": "2026-10-29T15:40:00.000Z",
+    "expires_at": "2026-10-29T16:40:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "send_email",
+    "operation": "tools/call",
+    "input": {
+      "to": "demo@example.com",
+      "body": "hello"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtpm16o_718293a4b5c6",
+    "idemKey": "mcp-guard:5194ac5c-72d4-45a1-83ce-8a9bacbdcedf",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"send_email\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"IRREVERSIBLE\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:c95f30ac7bc1e4cb020ceed62cc1ab63e50324fa7679d5730f7642f9cfa87a09\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"approved\",\"ruleId\":\"email\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}}}",
+    "inputHash": "sha256:c95f30ac7bc1e4cb020ceed62cc1ab63e50324fa7679d5730f7642f9cfa87a09",
+    "status": "APPROVED",
+    "riskTier": "medium",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:email\",\"OPERATOR_APPROVED\"]",
+    "summary": "MCP Guard approved \"send_email\" by demo",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-demo-5787f378b3f39ff4",
+    "expiresAt": "2026-10-29T16:40:00.000Z",
+    "createdAt": "2026-10-29T15:40:00.000Z",
+    "deciderId": "local:demo",
+    "deciderDisplay": "demo",
+    "deciderAuthMethod": "local_console",
+    "attributionConfidence": "heuristic",
+    "resolutionType": "allow_once",
+    "scope": "demo"
+  }
+}

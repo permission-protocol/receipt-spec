@@ -1,0 +1,52 @@
+{
+  "description": "DENIED by the operator in the local console: a held post_x refused by local:rod, resolutionType deny.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/approval-server.ts (deny), src/release.ts signHeld",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtom0w0_4e5f60718293",
+    "status": "DENIED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "64ce45383240608f94a010bafad978ef94ba74a009660d40f83b5a7d92e24595",
+    "signature_b64": "viSQgaWA3eN+fQv0Q58yNmxwWDCgKnC/xz6/hfjR8HII34OUvc/6CAvSNPpYk3frHBTWCwZorObDsYl+EaWjAA==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJoZXVyaXN0aWMiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNToxMjowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJsb2NhbF9jb25zb2xlIiwiZGVjaWRlckRpc3BsYXkiOiJyb2QiLCJkZWNpZGVySWQiOiJsb2NhbDpyb2QiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTI5VDE2OjEyOjAwLjAwMFoiLCJpZCI6InJjcHRfbWdfbXZ0b20wdzBfNGU1ZjYwNzE4MjkzIiwiaWRlbUtleSI6Im1jcC1ndWFyZDoyZTYxODA1Mi00ZmExLTQyN2UtOTA1Yi01MTYyNzM4YTliYWMiLCJpbnB1dEhhc2giOiJzaGEyNTY6NzdiMjY4Njg4M2M3YTFmZmVjNGU5NDcyYjg2OWQ2ZTU4MzkzNmJlOThhMzg5OTM1YjU2NjNjZDk3NWVhYzFkOCIsInBvbGljeVZlcnNpb24iOiJtY3AtZ3VhcmQtY29uZmlnOnNoYTI1Njo2NDgwNGNhN2M3YWNkOGZkMWQ4MDVhZDczNWY4MWY0NWI4Zjk0MmE0OWY1N2RmMmM5NGVkMDA0NjU0NGU1ZDU4IiwicmVhc29uQ29kZXMiOiJbXCJSVUxFX01BVENIRUQ6cG9zdFwiLFwiT1BFUkFUT1JfREVOSUVEXCJdIiwicmVjZWlwdFZlcnNpb24iOjIsInJlcXVlc3RKc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJ0b29scy9jYWxsXCIsXCJyZXNvdXJjZVwiOlwiaW5mcmEtbWNwXCIsXCJ0b29sXCI6XCJwb3N0X3hcIn0sXCJjb250ZXh0XCI6e1wibW9kZVwiOlwiZW5mb3JjZVwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCIsXCJ0cmFuc3BvcnRcIjpcInN0ZGlvXCJ9LFwiaGFzaGVzXCI6e1wiaW5wdXRIYXNoXCI6XCJzaGEyNTY6NzdiMjY4Njg4M2M3YTFmZmVjNGU5NDcyYjg2OWQ2ZTU4MzkzNmJlOThhMzg5OTM1YjU2NjNjZDk3NWVhYzFkOFwifSxcImludGVudFwiOntcImNhdGVnb3J5XCI6XCJtY3BfdG9vbF9jYWxsXCIsXCJuYW1lXCI6XCJtY3BfZ3VhcmRfZGVjaXNpb25cIn0sXCJwb2xpY3lcIjp7XCJkZWNpc2lvblwiOntcIm91dGNvbWVcIjpcImRlbmllZFwiLFwicnVsZUlkXCI6XCJwb3N0XCIsXCJydWxlVmVyc2lvblwiOlwibWNwLWd1YXJkLWNvbmZpZzpzaGEyNTY6NjQ4MDRjYTdjN2FjZDhmZDFkODA1YWQ3MzVmODFmNDViOGY5NDJhNDlmNTdkZjJjOTRlZDAwNDY1NDRlNWQ1OFwifX19IiwicmVzb2x1dGlvblR5cGUiOiJkZW55Iiwicmlza1RpZXIiOiJtZWRpdW0iLCJydW5JZCI6InJ1bl81ZjBjMmE5ZTQxYjdkM2M4Iiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoibWNwZy1jMjkwYWQ1NGJlZTJjMzFkIiwic3RhdHVzIjoiREVOSUVEIiwic3VtbWFyeSI6Ik1DUCBHdWFyZCBkZW5pZWQgXCJwb3N0X3hcIiBieSByb2QifQ==",
+    "issued_at": "2026-10-29T15:12:00.000Z",
+    "expires_at": "2026-10-29T16:12:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "post_x",
+    "operation": "tools/call",
+    "input": {
+      "text": "launching tomorrow"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtom0w0_4e5f60718293",
+    "idemKey": "mcp-guard:2e618052-4fa1-427e-905b-5162738a9bac",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"post_x\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"IRREVERSIBLE\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:77b2686883c7a1ffec4e9472b869d6e583936be98a389935b5663cd975eac1d8\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"denied\",\"ruleId\":\"post\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}}}",
+    "inputHash": "sha256:77b2686883c7a1ffec4e9472b869d6e583936be98a389935b5663cd975eac1d8",
+    "status": "DENIED",
+    "riskTier": "medium",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:post\",\"OPERATOR_DENIED\"]",
+    "summary": "MCP Guard denied \"post_x\" by rod",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T16:12:00.000Z",
+    "createdAt": "2026-10-29T15:12:00.000Z",
+    "deciderId": "local:rod",
+    "deciderDisplay": "rod",
+    "deciderAuthMethod": "local_console",
+    "attributionConfidence": "heuristic",
+    "resolutionType": "deny",
+    "scope": "production"
+  }
+}

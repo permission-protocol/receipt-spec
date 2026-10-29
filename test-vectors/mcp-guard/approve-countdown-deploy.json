@@ -1,0 +1,52 @@
+{
+  "description": "APPROVED when a reversible hold's countdown ran out with nobody holding it. Signed as policy (COUNTDOWN_AUTO_RELEASE), never as a person, so a gate that requires a person refuses it. Scoped: deploy:production at a commit.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/proxy.ts setAutoReleaseHandler, src/release.ts signHeld",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtod0tc_2c3d4e5f6071",
+    "status": "APPROVED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "2d6eeafb8ac194e8e9ae1ff714f206241f4187c106e87a102574252ac0ca1d9c",
+    "signature_b64": "9FJKl8Q7z/dyyamavb5BTGaD9q6s70laQiWIj1KMyyeyNPugXOICqsIaTIw+unzGUjPVBC7dj3Rl7V+bbcYaBQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNTowNTowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJwb2xpY3kiLCJkZWNpZGVyRGlzcGxheSI6Im1jcC1ndWFyZCBwb2xpY3kiLCJkZWNpZGVySWQiOiJzeXN0ZW0vbWNwLWd1YXJkLXBvbGljeSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMjlUMTU6MjA6MDAuMDAwWiIsImlkIjoicmNwdF9tZ19tdnRvZDB0Y18yYzNkNGU1ZjYwNzEiLCJpZGVtS2V5IjoibWNwLWd1YXJkOjBjNGY2ZTMwLTJkOGYtNDA1Yy05ZTc5LTNmNDA1MTYyNzM4YSIsImlucHV0SGFzaCI6InNoYTI1NjpmNDUyM2RmMDIyNDRiNGE0OThlNzVlMGQ3YzY4N2NkMzk1YWMyNGIxZmZkYmVmYWFhNDA0N2ZlZTQyNjljYTYyIiwicG9saWN5VmVyc2lvbiI6Im1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNTgiLCJyZWFzb25Db2RlcyI6IltcIlJVTEVfTUFUQ0hFRDpkZXBsb3lcIixcIkNPVU5URE9XTl9BVVRPX1JFTEVBU0VcIl0iLCJyZWNlaXB0VmVyc2lvbiI6MiwicmVxdWVzdEpzb24iOiJ7XCJhY3Rpb25cIjp7XCJvcGVyYXRpb25cIjpcInRvb2xzL2NhbGxcIixcInJlc291cmNlXCI6XCJpbmZyYS1tY3BcIixcInRvb2xcIjpcImRlcGxveVwifSxcImNvbnRleHRcIjp7XCJtb2RlXCI6XCJlbmZvcmNlXCIsXCJyZXZlcnNpYmlsaXR5XCI6XCJSRVZFUlNJQkxFXCIsXCJ0cmFuc3BvcnRcIjpcInN0ZGlvXCJ9LFwiaGFzaGVzXCI6e1wiaW5wdXRIYXNoXCI6XCJzaGEyNTY6ZjQ1MjNkZjAyMjQ0YjRhNDk4ZTc1ZTBkN2M2ODdjZDM5NWFjMjRiMWZmZGJlZmFhYTQwNDdmZWU0MjY5Y2E2MlwifSxcImludGVudFwiOntcImNhdGVnb3J5XCI6XCJtY3BfdG9vbF9jYWxsXCIsXCJuYW1lXCI6XCJtY3BfZ3VhcmRfZGVjaXNpb25cIn0sXCJwb2xpY3lcIjp7XCJkZWNpc2lvblwiOntcIm91dGNvbWVcIjpcImFwcHJvdmVkXCIsXCJydWxlSWRcIjpcImRlcGxveVwiLFwicnVsZVZlcnNpb25cIjpcIm1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNThcIn19LFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJkZXBsb3k6cHJvZHVjdGlvblwiLFwiY29tbWl0U2hhXCI6XCI0ZjFlMmQzYzRiNWE2OTc4ODc5NmE1YjRjM2QyZTFmMGE5YjhjN2Q2XCJ9fSIsInJpc2tUaWVyIjoiaGlnaCIsInJ1bklkIjoicnVuXzVmMGMyYTllNDFiN2QzYzgiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJtY3BnLWMyOTBhZDU0YmVlMmMzMWQiLCJzdGF0dXMiOiJBUFBST1ZFRCIsInN1bW1hcnkiOiJNQ1AgR3VhcmQgYXBwcm92ZWQgXCJkZXBsb3lcIiBieSBtY3AtZ3VhcmQgcG9saWN5In0=",
+    "issued_at": "2026-10-29T15:05:00.000Z",
+    "expires_at": "2026-10-29T15:20:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "deploy",
+    "operation": "tools/call",
+    "input": {
+      "env": "production",
+      "sha": "4f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtod0tc_2c3d4e5f6071",
+    "idemKey": "mcp-guard:0c4f6e30-2d8f-405c-9e79-3f405162738a",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"deploy\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"REVERSIBLE\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:f4523df02244b4a498e75e0d7c687cd395ac24b1ffdbefaaa4047fee4269ca62\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"approved\",\"ruleId\":\"deploy\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}},\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"4f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6\"}}",
+    "inputHash": "sha256:f4523df02244b4a498e75e0d7c687cd395ac24b1ffdbefaaa4047fee4269ca62",
+    "status": "APPROVED",
+    "riskTier": "high",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:deploy\",\"COUNTDOWN_AUTO_RELEASE\"]",
+    "summary": "MCP Guard approved \"deploy\" by mcp-guard policy",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T15:20:00.000Z",
+    "createdAt": "2026-10-29T15:05:00.000Z",
+    "deciderId": "system/mcp-guard-policy",
+    "deciderDisplay": "mcp-guard policy",
+    "deciderAuthMethod": "policy",
+    "attributionConfidence": "credentialed",
+    "scope": "production"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "description": "approve-countdown-deploy with its policy decider relabelled as the operator after signing, bytes re-encoded and the hash recomputed. Fails at the signature.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/proxy.ts setAutoReleaseHandler, src/release.ts signHeld",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtod0tc_2c3d4e5f6071",
+    "status": "APPROVED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "49da559a71aa2de17e0ae27f064f3e666a35eab9ee055d2fcf3f2b7ef8114a46",
+    "signature_b64": "9FJKl8Q7z/dyyamavb5BTGaD9q6s70laQiWIj1KMyyeyNPugXOICqsIaTIw+unzGUjPVBC7dj3Rl7V+bbcYaBQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJoZXVyaXN0aWMiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNTowNTowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJsb2NhbF9jb25zb2xlIiwiZGVjaWRlckRpc3BsYXkiOiJyb2QiLCJkZWNpZGVySWQiOiJsb2NhbDpyb2QiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTI5VDE1OjIwOjAwLjAwMFoiLCJpZCI6InJjcHRfbWdfbXZ0b2QwdGNfMmMzZDRlNWY2MDcxIiwiaWRlbUtleSI6Im1jcC1ndWFyZDowYzRmNmUzMC0yZDhmLTQwNWMtOWU3OS0zZjQwNTE2MjczOGEiLCJpbnB1dEhhc2giOiJzaGEyNTY6ZjQ1MjNkZjAyMjQ0YjRhNDk4ZTc1ZTBkN2M2ODdjZDM5NWFjMjRiMWZmZGJlZmFhYTQwNDdmZWU0MjY5Y2E2MiIsInBvbGljeVZlcnNpb24iOiJtY3AtZ3VhcmQtY29uZmlnOnNoYTI1Njo2NDgwNGNhN2M3YWNkOGZkMWQ4MDVhZDczNWY4MWY0NWI4Zjk0MmE0OWY1N2RmMmM5NGVkMDA0NjU0NGU1ZDU4IiwicmVhc29uQ29kZXMiOiJbXCJSVUxFX01BVENIRUQ6ZGVwbG95XCIsXCJDT1VOVERPV05fQVVUT19SRUxFQVNFXCJdIiwicmVjZWlwdFZlcnNpb24iOjIsInJlcXVlc3RKc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJ0b29scy9jYWxsXCIsXCJyZXNvdXJjZVwiOlwiaW5mcmEtbWNwXCIsXCJ0b29sXCI6XCJkZXBsb3lcIn0sXCJjb250ZXh0XCI6e1wibW9kZVwiOlwiZW5mb3JjZVwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiUkVWRVJTSUJMRVwiLFwidHJhbnNwb3J0XCI6XCJzdGRpb1wifSxcImhhc2hlc1wiOntcImlucHV0SGFzaFwiOlwic2hhMjU2OmY0NTIzZGYwMjI0NGI0YTQ5OGU3NWUwZDdjNjg3Y2QzOTVhYzI0YjFmZmRiZWZhYWE0MDQ3ZmVlNDI2OWNhNjJcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwibWNwX3Rvb2xfY2FsbFwiLFwibmFtZVwiOlwibWNwX2d1YXJkX2RlY2lzaW9uXCJ9LFwicG9saWN5XCI6e1wiZGVjaXNpb25cIjp7XCJvdXRjb21lXCI6XCJhcHByb3ZlZFwiLFwicnVsZUlkXCI6XCJkZXBsb3lcIixcInJ1bGVWZXJzaW9uXCI6XCJtY3AtZ3VhcmQtY29uZmlnOnNoYTI1Njo2NDgwNGNhN2M3YWNkOGZkMWQ4MDVhZDczNWY4MWY0NWI4Zjk0MmE0OWY1N2RmMmM5NGVkMDA0NjU0NGU1ZDU4XCJ9fSxcInNjb3BlXCI6e1wiY2FwYWJpbGl0eVwiOlwiZGVwbG95OnByb2R1Y3Rpb25cIixcImNvbW1pdFNoYVwiOlwiNGYxZTJkM2M0YjVhNjk3ODg3OTZhNWI0YzNkMmUxZjBhOWI4YzdkNlwifX0iLCJyZXNvbHV0aW9uVHlwZSI6ImFsbG93X29uY2UiLCJyaXNrVGllciI6ImhpZ2giLCJydW5JZCI6InJ1bl81ZjBjMmE5ZTQxYjdkM2M4Iiwic2NvcGUiOiJwcm9kdWN0aW9uIiwic2lnbmF0dXJlQWxnIjoiZWQyNTUxOSIsInNpZ25hdHVyZUtleUlkIjoibWNwZy1jMjkwYWQ1NGJlZTJjMzFkIiwic3RhdHVzIjoiQVBQUk9WRUQiLCJzdW1tYXJ5IjoiTUNQIEd1YXJkIGFwcHJvdmVkIFwiZGVwbG95XCIgYnkgbWNwLWd1YXJkIHBvbGljeSJ9",
+    "issued_at": "2026-10-29T15:05:00.000Z",
+    "expires_at": "2026-10-29T15:20:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "deploy",
+    "operation": "tools/call",
+    "input": {
+      "env": "production",
+      "sha": "4f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtod0tc_2c3d4e5f6071",
+    "idemKey": "mcp-guard:0c4f6e30-2d8f-405c-9e79-3f405162738a",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"deploy\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"REVERSIBLE\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:f4523df02244b4a498e75e0d7c687cd395ac24b1ffdbefaaa4047fee4269ca62\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"approved\",\"ruleId\":\"deploy\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}},\"scope\":{\"capability\":\"deploy:production\",\"commitSha\":\"4f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6\"}}",
+    "inputHash": "sha256:f4523df02244b4a498e75e0d7c687cd395ac24b1ffdbefaaa4047fee4269ca62",
+    "status": "APPROVED",
+    "riskTier": "high",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:deploy\",\"COUNTDOWN_AUTO_RELEASE\"]",
+    "summary": "MCP Guard approved \"deploy\" by mcp-guard policy",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T15:20:00.000Z",
+    "createdAt": "2026-10-29T15:05:00.000Z",
+    "deciderId": "local:rod",
+    "deciderDisplay": "rod",
+    "deciderAuthMethod": "local_console",
+    "attributionConfidence": "heuristic",
+    "scope": "production",
+    "resolutionType": "allow_once"
+  }
+}

@@ -594,9 +594,7 @@ On the **execute lane**, the receipt names the human as well, since 2026-09-08: 
 
 Two forms therefore remain in circulation on this lane, and a verifier must accept both. Execute-lane receipts signed before 2026-09-08 bind a role class (`role/human-approver`, `role/founder`) and are never re-signed. After that date a role class still appears when the approval record names no resolvable individual, and the API-key lane still binds `role/api-key-approver`, since the approvals routes do not learn which key approved.
 
-A claim that a receipt "names the human" is now true of both the deploy-gate lane and the execute lane, at the confidence each records. It is not true of MCP Guard's local approvals.
-
-MCP Guard, the open-source proxy, signs its own local receipts with a per-install development key and is not described by this document.
+A claim that a receipt "names the human" is now true of both the deploy-gate lane and the execute lane, at the confidence each records. It is not true in the same sense of MCP Guard's local approvals, which name a configured operator at `heuristic` confidence (section 14).
 
 ### 7.5 Known windows
 
@@ -780,4 +778,86 @@ The npm verifier 0.4.2 verified it with the same result. 0.4.1 exits 8 (`PROJECT
 - `VERIFY.md`: the nine-line verification and the online paths.
 - `MAPPINGS.md`: which fields back which controls.
 - `VERSIONING.md`: how this format changes.
+- Section 14 and `schema/receipt-v2-mcp-guard.json`: MCP Guard, a local issuer of `jcs_v2` receipts.
 - In `permission-protocol/app`: `docs/receipt-standard.md` (the SDK-facing receipt object and status mapping), `permission-protocol-sdk/spec/hashable-payload-v1.md` (`inputHash` on the execute lane), `src/lib/permission-protocol-v1/signing/canonicalize.ts` (the frozen field lists this document transcribes), `src/lib/permission-protocol-v1/signing/public-projection.ts` and `request-commitment.ts` (the `jcs_v3` projection allowlists, build rule and commitment), `decider-proof.ts` (the `deciderProof` shapes and consistency rule) and `receipt-v3.ts` (the committed summary and the issuer's opening of the commitment), `docs/trust/design-notes/F2-RECEIPT-V3-PUBLIC-PROJECTION.md` (why `jcs_v3` exists and what it leaves public), `src/lib/permission-router/execution-attestation.ts` (`attest_v1`), `docs/adr/0003-authorization-before-execution.md` (why authorization precedes execution and the outcome is separate).
+
+## 14. Local issuer: MCP Guard
+
+MCP Guard (`permission-protocol/mcp-guard`, `@permission-protocol/mcp-guard` on npm) is an open-source MCP proxy that blocks, allows or holds an agent's tool calls under a local policy file. **From version 0.3.0 it signs every final decision as a `jcs_v2` receipt**: the canonicalization (section 4), the digest and signature (5.1), the artifact (6.1) and the verify procedure (6.2) are the ones this document describes, unchanged. It is a *local* issuer: the receipts are signed with a key its operator creates and holds, never with the hosted service's keys, and they never verify against the hosted key set. Receipts from MCP Guard 0.2 and earlier are a different, legacy format that this document does not describe.
+
+This section states where an MCP Guard receipt differs from what the hosted service emits. `schema/receipt-v2-mcp-guard.json` is its value profile. The source is `src/issuer.ts` in `permission-protocol/mcp-guard`.
+
+### 14.1 Keys
+
+- The operator creates the key with `mcp-guard keys init` (and `keys rotate`, `keys revoke`). The proxy never generates a key; with none it refuses to start, or, if the key disappears or is revoked while it runs, refuses the call (`SIGNING_KEY_MISSING`, `SIGNING_KEY_INVALID`, `SIGNING_KEY_REVOKED`).
+- `keys.json` has the shape of section 5.3, with `issuer` `local:mcp-guard`. It is published by the operator, typically committed where a gate runs (`.pp/keys.json`), not served from a well-known URL.
+- **Key ids are self-certifying:** `mcpg-` followed by the first 16 hex digits of SHA-256 of the raw 32-byte public key. A demo key is `mcpg-demo-` with the same rule. A verifier that knows the rule recomputes the id from the key and refuses a mismatch, so an MCP Guard key id can never be shared by two keys or pass as a `pp_key_*` id.
+- Gates pin the key by fingerprint: `--trust KEY_ID=sha256:<SHA-256 of the raw key>`, the same syntax `@permission-protocol/verify` takes. Without a pin, the key set file is the only trust anchor.
+- Rotation keeps older keys in `keys.json` as `active` for verification; only the newest key signs. Revocation marks the entry `revoked` with `revoked_at`, and every receipt under it then fails (`KEY_REVOKED`), with the key-id-wide meaning of 5.3.
+
+### 14.2 Fields
+
+| Field | MCP Guard value |
+|---|---|
+| `id` | `rcpt_mg_<base36 milliseconds>_<12 hex>` |
+| `companyId` | absent: a local issuer has no tenant |
+| `idemKey` | `mcp-guard:<decision id>`: the held call's queue id, else a fresh UUID |
+| `agentId`, `runId` | the guard's `--agent-id` (`github-webhook` for a pull request queued by the webhook); a random `run_<16 hex>` per guard start |
+| `requestJson` | the MCP request shape of 14.3; never the tool arguments |
+| `inputHash` | `pp.hashable_payload.v1` (`permission-protocol/app`, `permission-protocol-sdk/spec/hashable-payload-v1.md`) over `{ tool, operation, input, metadata: null }`: the tool name (the method, for a method other than `tools/call`), the JSON-RPC method (`github/merge` for a webhook pull request), and the arguments the server receives with agent metadata (`_pp`) removed. Anyone holding the call recomputes it. |
+| `status` | `APPROVED` or `DENIED`. Holds are recorded unsigned, as in 5.4. |
+| `riskTier` | MCP Guard's own `low`, `medium`, `high` or `critical`, from the tool and argument names; not the hosted tiers |
+| `policyVersion` | `mcp-guard-config:sha256:<hex>`, the SHA-256 of the loaded configuration file's bytes |
+| `reasonCodes` | a fixed set: `RULE_MATCHED:<rule id>` or `DEFAULT_ACTION` first; then, when a hold was resolved, `COUNTDOWN_AUTO_RELEASE`, `OPERATOR_APPROVED`, `OPERATOR_DENIED` or `APPROVAL_EXPIRED` |
+| `summary` | `MCP Guard approved|denied "<tool>" by <decider display>`, with no argument value |
+| `expiresAt` | always set: 15 minutes after issue for a scoped action (14.3), 1 hour otherwise, configurable per rule up to one day |
+| decider fields | 14.4 |
+| `scope` | `demo` exactly when the key is an `mcpg-demo-` key (the `mcp-guard demo` command and the demo scripts), else `production` |
+
+### 14.3 `requestJson`
+
+Canonical text (sorted keys, no whitespace) of:
+
+```json
+{"action":{"operation":"tools/call","resource":"<server label>","tool":"merge_pr"},"context":{"mode":"enforce","reversibility":"IRREVERSIBLE","transport":"stdio"},"hashes":{"inputHash":"sha256:<hex>"},"intent":{"category":"mcp_tool_call","name":"mcp_guard_decision"},"policy":{"decision":{"outcome":"approved","ruleId":"merge","ruleVersion":"mcp-guard-config:sha256:<hex>"}},"scope":{"capability":"github:merge","commitSha":"<sha>","ref":"refs/pull/16/merge"}}
+```
+
+- `action.resource` is the configured `server_label`, never the MCP server's command line (which can carry secrets). A webhook pull request names `github-webhook` with `context.transport` `webhook`.
+- `context.reversibility` and `policy.decision.ruleId` are absent when unknown (no rule matched).
+- `scope` is present only for the code and infrastructure actions a gate checks: `github:merge` with `ref` `refs/pull/<n>/merge` and `commitSha` the pull request's **head** commit (not the merge commit), `deploy:<environment>` and `sql:migrate:<environment>` with the commit or reference they name. These identifiers are the only argument-derived values signed in the clear.
+
+### 14.4 Deciders
+
+| Path | `deciderId` | `deciderDisplay` | `deciderAuthMethod` | `attributionConfidence` | `resolutionType` |
+|---|---|---|---|---|---|
+| Allowed or blocked by a rule or the default action; a call under a spend cap; a countdown release; an expired hold | `system/mcp-guard-policy` | `mcp-guard policy` | `policy` | `credentialed` | absent |
+| Approved or denied in the local console | `local:<operator>` | the operator | `local_console` | `heuristic` | `allow_once` or `deny` |
+| Denied in the local console with no operator | absent | absent | `local_console` | `unattributed` | `deny` |
+
+- `system/mcp-guard-policy` is, as for the hosted `system/*` deciders (7.2), a signed statement that **no person decided**: a countdown release or an expiry can never be read as a person's approval.
+- `local_console` is a decision in the guard's console. The console listens on loopback only and requires a per-process token that the guard prints to the operator's terminal. The operator name comes from `--operator` (default: the OS user). It is configured, not authenticated, so the confidence is `heuristic`: the token proves access to the guard's terminal; it does not prove who held it.
+- An approval with no operator is refused in `production` scope (`UNATTRIBUTED_PRODUCTION_DECIDER`) and the call stays held, as the hosted issuer refuses an unattributed production decision (7.3).
+- `local_console` widens the value set of `deciderAuthMethod` (VERSIONING.md, "Widening a value set"). The hosted service never emits it, so `schema/receipt-v2.json` does not list it; `schema/receipt-v2-mcp-guard.json` does.
+
+### 14.5 Verifying
+
+Section 6.2 applies unchanged. A gate adds the checks MCP Guard's own verifier (`mcp-guard verify`) runs on the signed payload: `status` `APPROVED`; `expiresAt` not passed; the expected `scope.capability`, `scope.ref` and `scope.commitSha` in `requestJson`, exactly; for a scoped action, a decider that is not `policy` and not `unattributed`; `scope` not `demo`; and, when the call is at hand, `inputHash` recomputed from it. `tools/verify.mjs` and `@permission-protocol/verify` verify MCP Guard artifacts in file mode with the operator's `keys.json`. URL mode does not apply: the hosted service holds no MCP Guard receipts.
+
+### 14.6 Vectors
+
+`test-vectors/mcp-guard/` holds one receipt per signing path of MCP Guard 0.3.0, a demo receipt and a tampered one, with their key set. `tools/generate-mcp-guard-vectors.mjs` produces them from fixed inputs with two test keys derived from fixed seeds; CI regenerates them and fails on drift. Each vector publishes the call it decided beside the receipt (`call`), so `inputHash` can be recomputed. `test/mcp-guard-vectors.test.mjs` checks each against `schema/receipt-v2-mcp-guard.json`.
+
+| File | What it is | Expected result |
+|---|---|---|
+| `approve-policy-rule.json` | a tool call allowed by a rule | verifies |
+| `deny-policy-rule.json` | a tool call blocked by a rule | verifies, decision `DENIED` |
+| `approve-countdown-deploy.json` | a scoped deploy released when its countdown ran out: `system/mcp-guard-policy`, `COUNTDOWN_AUTO_RELEASE` | verifies; a gate that requires a person refuses it |
+| `approve-operator-merge.json` | a held `merge_pr` approved in the console by `local:rod`, scoped to the pull request's head commit | verifies |
+| `deny-operator-post.json` | a held call denied in the console | verifies, decision `DENIED` |
+| `approve-operator-webhook-merge.json` | a pull request queued by the GitHub webhook and approved in the console: operation `github/merge`, resource `github-webhook` | verifies |
+| `deny-approval-expired.json` | a held call that expired with no decision: `APPROVAL_EXPIRED`, signed as policy | verifies, decision `DENIED` |
+| `approve-demo-operator.json` | a demo run: `mcpg-demo-` key, `scope: demo` | verifies; a gate refuses it unless it allows demo receipts |
+| `tampered-relabel-countdown-deploy.json` | the countdown release with its decider relabelled as `local:rod` after signing, hash recomputed | fails at the signature |
+| `keys.json` | the two test keys, with the `--trust` value for each under `trust` | |
+
+**Cross-check, 2026-10-29.** MCP Guard 0.3.0 (`permission-protocol/mcp-guard` commit `3c7a18a`, its issuer and `buildArtifact`), given each vector's inputs and key, produced the same canonical bytes and the same signature for all eight valid vectors. Its own verifier (`verifyArtifactReceipt`, with the key set pinned by `--trust` and `inputHash` recomputed from `call`) accepted them and failed the tampered one with `SIGNATURE_INVALID`. Its `inputHash` reproduced every `pp.hashable_payload.v1` golden vector with null metadata in `permission-protocol/app` (`permission-protocol-sdk/spec/golden-vectors.json`, 9 of 9). `@permission-protocol/verify` 0.4.2 verified artifacts the released 0.3.0 package signed, approved and denied, against an operator's `keys.json` with `--trust`.
