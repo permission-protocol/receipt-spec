@@ -1,0 +1,53 @@
+{
+  "description": "DENIED because a held call expired with no decision (APPROVAL_EXPIRED). Signed as policy: nobody decided.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/proxy.ts setExpireHandler, src/release.ts signHeld",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtp9680_60718293a4b5",
+    "status": "DENIED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "239dc2ddc960d76199490175630fbe2f400556311ac9e4cdee4b839f96dccf85",
+    "signature_b64": "IB9dgIjRORLplHa4k2t7t8wnRMvCUwznqa+HXSh1eyBA412ZbpgjvYejPaJwFCqxgHRKAiPh6zkKVwVGsbg2Cg==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNTozMDowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJwb2xpY3kiLCJkZWNpZGVyRGlzcGxheSI6Im1jcC1ndWFyZCBwb2xpY3kiLCJkZWNpZGVySWQiOiJzeXN0ZW0vbWNwLWd1YXJkLXBvbGljeSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMjlUMTU6NDU6MDAuMDAwWiIsImlkIjoicmNwdF9tZ19tdnRwOTY4MF82MDcxODI5M2E0YjUiLCJpZGVtS2V5IjoibWNwLWd1YXJkOjQwODM5YjRiLTYxYzMtNDQ5MC1iMmJkLTczOGE5YmFjYmRjZSIsImlucHV0SGFzaCI6InNoYTI1NjpkZTAwMGY3ODM4YWExMGY3YmQzMzZlYjA5MGZlZDQ5ZjMxYTM2NmRmZjhlNDA5MzY0MzFiMTEzNzQ4MDc0OGU5IiwicG9saWN5VmVyc2lvbiI6Im1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNTgiLCJyZWFzb25Db2RlcyI6IltcIlJVTEVfTUFUQ0hFRDptZXJnZVwiLFwiQVBQUk9WQUxfRVhQSVJFRFwiXSIsInJlY2VpcHRWZXJzaW9uIjoyLCJyZXF1ZXN0SnNvbiI6IntcImFjdGlvblwiOntcIm9wZXJhdGlvblwiOlwidG9vbHMvY2FsbFwiLFwicmVzb3VyY2VcIjpcImluZnJhLW1jcFwiLFwidG9vbFwiOlwibWVyZ2VfcHJcIn0sXCJjb250ZXh0XCI6e1wibW9kZVwiOlwiZW5mb3JjZVwiLFwicmV2ZXJzaWJpbGl0eVwiOlwiSVJSRVZFUlNJQkxFXCIsXCJ0cmFuc3BvcnRcIjpcInN0ZGlvXCJ9LFwiaGFzaGVzXCI6e1wiaW5wdXRIYXNoXCI6XCJzaGEyNTY6ZGUwMDBmNzgzOGFhMTBmN2JkMzM2ZWIwOTBmZWQ0OWYzMWEzNjZkZmY4ZTQwOTM2NDMxYjExMzc0ODA3NDhlOVwifSxcImludGVudFwiOntcImNhdGVnb3J5XCI6XCJtY3BfdG9vbF9jYWxsXCIsXCJuYW1lXCI6XCJtY3BfZ3VhcmRfZGVjaXNpb25cIn0sXCJwb2xpY3lcIjp7XCJkZWNpc2lvblwiOntcIm91dGNvbWVcIjpcImRlbmllZFwiLFwicnVsZUlkXCI6XCJtZXJnZVwiLFwicnVsZVZlcnNpb25cIjpcIm1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNThcIn19LFwic2NvcGVcIjp7XCJjYXBhYmlsaXR5XCI6XCJnaXRodWI6bWVyZ2VcIixcImNvbW1pdFNoYVwiOlwiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMVwiLFwicmVmXCI6XCJyZWZzL3B1bGwvMTcvbWVyZ2VcIn19Iiwicmlza1RpZXIiOiJoaWdoIiwicnVuSWQiOiJydW5fNWYwYzJhOWU0MWI3ZDNjOCIsInNjb3BlIjoicHJvZHVjdGlvbiIsInNpZ25hdHVyZUFsZyI6ImVkMjU1MTkiLCJzaWduYXR1cmVLZXlJZCI6Im1jcGctYzI5MGFkNTRiZWUyYzMxZCIsInN0YXR1cyI6IkRFTklFRCIsInN1bW1hcnkiOiJNQ1AgR3VhcmQgZGVuaWVkIFwibWVyZ2VfcHJcIiBieSBtY3AtZ3VhcmQgcG9saWN5In0=",
+    "issued_at": "2026-10-29T15:30:00.000Z",
+    "expires_at": "2026-10-29T15:45:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "merge_pr",
+    "operation": "tools/call",
+    "input": {
+      "repo": "acme/api",
+      "pr_number": 17,
+      "head_sha": "1111111111111111111111111111111111111111"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtp9680_60718293a4b5",
+    "idemKey": "mcp-guard:40839b4b-61c3-4490-b2bd-738a9bacbdce",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"merge_pr\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"IRREVERSIBLE\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:de000f7838aa10f7bd336eb090fed49f31a366dff8e40936431b1137480748e9\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"denied\",\"ruleId\":\"merge\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}},\"scope\":{\"capability\":\"github:merge\",\"commitSha\":\"1111111111111111111111111111111111111111\",\"ref\":\"refs/pull/17/merge\"}}",
+    "inputHash": "sha256:de000f7838aa10f7bd336eb090fed49f31a366dff8e40936431b1137480748e9",
+    "status": "DENIED",
+    "riskTier": "high",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:merge\",\"APPROVAL_EXPIRED\"]",
+    "summary": "MCP Guard denied \"merge_pr\" by mcp-guard policy",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T15:45:00.000Z",
+    "createdAt": "2026-10-29T15:30:00.000Z",
+    "deciderId": "system/mcp-guard-policy",
+    "deciderDisplay": "mcp-guard policy",
+    "deciderAuthMethod": "policy",
+    "attributionConfidence": "credentialed",
+    "scope": "production"
+  }
+}

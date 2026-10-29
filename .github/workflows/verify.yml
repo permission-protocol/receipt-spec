@@ -104,3 +104,14 @@ jobs:
       - name: Vectors are regenerated deterministically from their inputs
         run: |
           node tools/generate-vectors.mjs --check
+          node tools/generate-mcp-guard-vectors.mjs --check
+      - name: Verify one MCP Guard receipt through the reference CLI against its own key set
+        run: node tools/verify.mjs test-vectors/mcp-guard/approve-operator-merge.json test-vectors/mcp-guard/keys.json
+      - name: The tampered MCP Guard vector must fail, and an MCP Guard receipt must not verify against the hosted key set
+        run: |
+          if node tools/verify.mjs test-vectors/mcp-guard/tampered-relabel-countdown-deploy.json test-vectors/mcp-guard/keys.json; then
+            echo "tampered mcp-guard vector verified; that is a bug" && exit 1
+          fi
+          if node tools/verify.mjs test-vectors/mcp-guard/approve-operator-merge.json test-vectors/keys.json; then
+            echo "an mcp-guard receipt verified against the hosted key set; that is a bug" && exit 1
+          fi

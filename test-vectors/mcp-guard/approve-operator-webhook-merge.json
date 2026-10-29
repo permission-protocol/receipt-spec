@@ -1,0 +1,54 @@
+{
+  "description": "APPROVED by the operator for a pull request queued by the GitHub webhook (no MCP call behind it): operation github/merge, resource github-webhook, transport webhook. Binds the PR head commit, not the merge commit.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/approval-server.ts handleWebhook and approve, src/release.ts signHeld",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvtopvs0_5f60718293a4",
+    "status": "APPROVED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "bc74757ad5798c7e534a5dc053f4c1266402bc71d0f09e4d5a9544739911fe4c",
+    "signature_b64": "GcVd/FY0U43NMgcg2VlHiePEhpem+MZ5Y6x721HaAcAaWQHxcTPKYw9b4mtm3kfZZvmVsczCgB08V2phOfOMAQ==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiZ2l0aHViLXdlYmhvb2siLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJoZXVyaXN0aWMiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNToxNTowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJsb2NhbF9jb25zb2xlIiwiZGVjaWRlckRpc3BsYXkiOiJyb2QiLCJkZWNpZGVySWQiOiJsb2NhbDpyb2QiLCJleHBpcmVzQXQiOiIyMDI2LTEwLTI5VDE1OjMwOjAwLjAwMFoiLCJpZCI6InJjcHRfbWdfbXZ0b3B2czBfNWY2MDcxODI5M2E0IiwiaWRlbUtleSI6Im1jcC1ndWFyZDozZjcyOTFhMy01MGIyLTQzOGYtYTFhYy02MjczOGE5YmFjYmQiLCJpbnB1dEhhc2giOiJzaGEyNTY6MzNiYzMzMGViZTMwMjM5OWU1NDJjNjI4Yzg5MmJiMjU2ZWZmNjU1YmE0ZTU5MjRhNTYyNmZiNDBhNzdlODEzZSIsInBvbGljeVZlcnNpb24iOiJtY3AtZ3VhcmQtY29uZmlnOnNoYTI1Njo2NDgwNGNhN2M3YWNkOGZkMWQ4MDVhZDczNWY4MWY0NWI4Zjk0MmE0OWY1N2RmMmM5NGVkMDA0NjU0NGU1ZDU4IiwicmVhc29uQ29kZXMiOiJbXCJSVUxFX01BVENIRUQ6cHItbmVlZHMtYXV0aG9yaXR5XCIsXCJPUEVSQVRPUl9BUFBST1ZFRFwiXSIsInJlY2VpcHRWZXJzaW9uIjoyLCJyZXF1ZXN0SnNvbiI6IntcImFjdGlvblwiOntcIm9wZXJhdGlvblwiOlwiZ2l0aHViL21lcmdlXCIsXCJyZXNvdXJjZVwiOlwiZ2l0aHViLXdlYmhvb2tcIixcInRvb2xcIjpcIm1lcmdlX3ByXCJ9LFwiY29udGV4dFwiOntcIm1vZGVcIjpcImVuZm9yY2VcIixcInJldmVyc2liaWxpdHlcIjpcIlJFVkVSU0lCTEVcIixcInRyYW5zcG9ydFwiOlwid2ViaG9va1wifSxcImhhc2hlc1wiOntcImlucHV0SGFzaFwiOlwic2hhMjU2OjMzYmMzMzBlYmUzMDIzOTllNTQyYzYyOGM4OTJiYjI1NmVmZjY1NWJhNGU1OTI0YTU2MjZmYjQwYTc3ZTgxM2VcIn0sXCJpbnRlbnRcIjp7XCJjYXRlZ29yeVwiOlwibWNwX3Rvb2xfY2FsbFwiLFwibmFtZVwiOlwibWNwX2d1YXJkX2RlY2lzaW9uXCJ9LFwicG9saWN5XCI6e1wiZGVjaXNpb25cIjp7XCJvdXRjb21lXCI6XCJhcHByb3ZlZFwiLFwicnVsZUlkXCI6XCJwci1uZWVkcy1hdXRob3JpdHlcIixcInJ1bGVWZXJzaW9uXCI6XCJtY3AtZ3VhcmQtY29uZmlnOnNoYTI1Njo2NDgwNGNhN2M3YWNkOGZkMWQ4MDVhZDczNWY4MWY0NWI4Zjk0MmE0OWY1N2RmMmM5NGVkMDA0NjU0NGU1ZDU4XCJ9fSxcInNjb3BlXCI6e1wiY2FwYWJpbGl0eVwiOlwiZ2l0aHViOm1lcmdlXCIsXCJjb21taXRTaGFcIjpcIjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1NjdcIixcInJlZlwiOlwicmVmcy9wdWxsLzIxL21lcmdlXCJ9fSIsInJlc29sdXRpb25UeXBlIjoiYWxsb3dfb25jZSIsInJpc2tUaWVyIjoiaGlnaCIsInJ1bklkIjoicnVuXzVmMGMyYTllNDFiN2QzYzgiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJtY3BnLWMyOTBhZDU0YmVlMmMzMWQiLCJzdGF0dXMiOiJBUFBST1ZFRCIsInN1bW1hcnkiOiJNQ1AgR3VhcmQgYXBwcm92ZWQgXCJtZXJnZV9wclwiIGJ5IHJvZCJ9",
+    "issued_at": "2026-10-29T15:15:00.000Z",
+    "expires_at": "2026-10-29T15:30:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "merge_pr",
+    "operation": "github/merge",
+    "input": {
+      "repo": "acme/api",
+      "pr_number": 21,
+      "scope_sha": "0123456789abcdef0123456789abcdef01234567"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvtopvs0_5f60718293a4",
+    "idemKey": "mcp-guard:3f7291a3-50b2-438f-a1ac-62738a9bacbd",
+    "agentId": "github-webhook",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"github/merge\",\"resource\":\"github-webhook\",\"tool\":\"merge_pr\"},\"context\":{\"mode\":\"enforce\",\"reversibility\":\"REVERSIBLE\",\"transport\":\"webhook\"},\"hashes\":{\"inputHash\":\"sha256:33bc330ebe302399e542c628c892bb256eff655ba4e5924a5626fb40a77e813e\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"approved\",\"ruleId\":\"pr-needs-authority\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}},\"scope\":{\"capability\":\"github:merge\",\"commitSha\":\"0123456789abcdef0123456789abcdef01234567\",\"ref\":\"refs/pull/21/merge\"}}",
+    "inputHash": "sha256:33bc330ebe302399e542c628c892bb256eff655ba4e5924a5626fb40a77e813e",
+    "status": "APPROVED",
+    "riskTier": "high",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:pr-needs-authority\",\"OPERATOR_APPROVED\"]",
+    "summary": "MCP Guard approved \"merge_pr\" by rod",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T15:30:00.000Z",
+    "createdAt": "2026-10-29T15:15:00.000Z",
+    "deciderId": "local:rod",
+    "deciderDisplay": "rod",
+    "deciderAuthMethod": "local_console",
+    "attributionConfidence": "heuristic",
+    "resolutionType": "allow_once",
+    "scope": "production"
+  }
+}

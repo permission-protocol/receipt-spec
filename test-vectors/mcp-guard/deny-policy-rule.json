@@ -1,0 +1,52 @@
+{
+  "description": "DENIED by policy: a tools/call blocked by a rule. Denials are signed with the same ceremony; the arguments are bound only by inputHash.",
+  "generated_by": "node tools/generate-mcp-guard-vectors.mjs",
+  "mirrors": "mcp-guard src/proxy.ts gate() (blocked), src/issuer.ts",
+  "artifact": {
+    "receipt_id": "rcpt_mg_mvto7vmo_1b2c3d4e5f60",
+    "status": "DENIED",
+    "receipt_version": 2,
+    "canonicalization": "jcs_v2",
+    "key_id": "mcpg-c290ad54bee2c31d",
+    "alg": "ed25519",
+    "signed_payload_hash": "010a71cb0439173c4201ae11e09bb642a2d0161760f99062ca155493eb7f19dc",
+    "signature_b64": "NIEwfcNJJJSgEJZo4Cda/YiyXYLiR8P51+3DBztXaQhANwx/ff24rM8oF6Jm/mTGHhivX05yaGOQtAhY8g5TBg==",
+    "payload_bytes_b64": "eyJhZ2VudElkIjoiY2xhdWRlLWRlc2t0b3AiLCJhdHRyaWJ1dGlvbkNvbmZpZGVuY2UiOiJjcmVkZW50aWFsZWQiLCJjYW5vbmljYWxpemF0aW9uIjoiamNzX3YyIiwiY3JlYXRlZEF0IjoiMjAyNi0xMC0yOVQxNTowMTowMC4wMDBaIiwiZGVjaWRlckF1dGhNZXRob2QiOiJwb2xpY3kiLCJkZWNpZGVyRGlzcGxheSI6Im1jcC1ndWFyZCBwb2xpY3kiLCJkZWNpZGVySWQiOiJzeXN0ZW0vbWNwLWd1YXJkLXBvbGljeSIsImV4cGlyZXNBdCI6IjIwMjYtMTAtMjlUMTY6MDE6MDAuMDAwWiIsImlkIjoicmNwdF9tZ19tdnRvN3Ztb18xYjJjM2Q0ZTVmNjAiLCJpZGVtS2V5IjoibWNwLWd1YXJkOjliM2U1ZDJmLTFjN2UtNGY0Yi04ZDY4LTJlM2Y0MDUxNjI3MyIsImlucHV0SGFzaCI6InNoYTI1NjozOGU4ZDI3NWMwMDlmOWExOWFiNGUxMDRmMWQwN2NiYmNiNDIwYTcxNmQ4YzFjNjMxODU5YWQwYmE3ODBiY2M2IiwicG9saWN5VmVyc2lvbiI6Im1jcC1ndWFyZC1jb25maWc6c2hhMjU2OjY0ODA0Y2E3YzdhY2Q4ZmQxZDgwNWFkNzM1ZjgxZjQ1YjhmOTQyYTQ5ZjU3ZGYyYzk0ZWQwMDQ2NTQ0ZTVkNTgiLCJyZWFzb25Db2RlcyI6IltcIlJVTEVfTUFUQ0hFRDpub3BlXCJdIiwicmVjZWlwdFZlcnNpb24iOjIsInJlcXVlc3RKc29uIjoie1wiYWN0aW9uXCI6e1wib3BlcmF0aW9uXCI6XCJ0b29scy9jYWxsXCIsXCJyZXNvdXJjZVwiOlwiaW5mcmEtbWNwXCIsXCJ0b29sXCI6XCJkZWxldGVfcmVjb3Jkc1wifSxcImNvbnRleHRcIjp7XCJtb2RlXCI6XCJlbmZvcmNlXCIsXCJ0cmFuc3BvcnRcIjpcInN0ZGlvXCJ9LFwiaGFzaGVzXCI6e1wiaW5wdXRIYXNoXCI6XCJzaGEyNTY6MzhlOGQyNzVjMDA5ZjlhMTlhYjRlMTA0ZjFkMDdjYmJjYjQyMGE3MTZkOGMxYzYzMTg1OWFkMGJhNzgwYmNjNlwifSxcImludGVudFwiOntcImNhdGVnb3J5XCI6XCJtY3BfdG9vbF9jYWxsXCIsXCJuYW1lXCI6XCJtY3BfZ3VhcmRfZGVjaXNpb25cIn0sXCJwb2xpY3lcIjp7XCJkZWNpc2lvblwiOntcIm91dGNvbWVcIjpcImRlbmllZFwiLFwicnVsZUlkXCI6XCJub3BlXCIsXCJydWxlVmVyc2lvblwiOlwibWNwLWd1YXJkLWNvbmZpZzpzaGEyNTY6NjQ4MDRjYTdjN2FjZDhmZDFkODA1YWQ3MzVmODFmNDViOGY5NDJhNDlmNTdkZjJjOTRlZDAwNDY1NDRlNWQ1OFwifX19Iiwicmlza1RpZXIiOiJjcml0aWNhbCIsInJ1bklkIjoicnVuXzVmMGMyYTllNDFiN2QzYzgiLCJzY29wZSI6InByb2R1Y3Rpb24iLCJzaWduYXR1cmVBbGciOiJlZDI1NTE5Iiwic2lnbmF0dXJlS2V5SWQiOiJtY3BnLWMyOTBhZDU0YmVlMmMzMWQiLCJzdGF0dXMiOiJERU5JRUQiLCJzdW1tYXJ5IjoiTUNQIEd1YXJkIGRlbmllZCBcImRlbGV0ZV9yZWNvcmRzXCIgYnkgbWNwLWd1YXJkIHBvbGljeSJ9",
+    "issued_at": "2026-10-29T15:01:00.000Z",
+    "expires_at": "2026-10-29T16:01:00.000Z"
+  },
+  "keys_url": "test-vectors/mcp-guard/keys.json",
+  "verification_hint": "Verify against test-vectors/mcp-guard/keys.json pinned by fingerprint (--trust KEY_ID=sha256:<hex>). The receipt carries no arguments: recompute inputHash from `call` with pp.hashable_payload.v1 (metadata null).",
+  "call": {
+    "tool": "delete_records",
+    "operation": "tools/call",
+    "input": {
+      "table": "customers",
+      "where": "1=1"
+    }
+  },
+  "receipt": {
+    "id": "rcpt_mg_mvto7vmo_1b2c3d4e5f60",
+    "idemKey": "mcp-guard:9b3e5d2f-1c7e-4f4b-8d68-2e3f40516273",
+    "agentId": "claude-desktop",
+    "runId": "run_5f0c2a9e41b7d3c8",
+    "requestJson": "{\"action\":{\"operation\":\"tools/call\",\"resource\":\"infra-mcp\",\"tool\":\"delete_records\"},\"context\":{\"mode\":\"enforce\",\"transport\":\"stdio\"},\"hashes\":{\"inputHash\":\"sha256:38e8d275c009f9a19ab4e104f1d07cbbcb420a716d8c1c631859ad0ba780bcc6\"},\"intent\":{\"category\":\"mcp_tool_call\",\"name\":\"mcp_guard_decision\"},\"policy\":{\"decision\":{\"outcome\":\"denied\",\"ruleId\":\"nope\",\"ruleVersion\":\"mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58\"}}}",
+    "inputHash": "sha256:38e8d275c009f9a19ab4e104f1d07cbbcb420a716d8c1c631859ad0ba780bcc6",
+    "status": "DENIED",
+    "riskTier": "critical",
+    "policyVersion": "mcp-guard-config:sha256:64804ca7c7acd8fd1d805ad735f81f45b8f942a49f57df2c94ed0046544e5d58",
+    "reasonCodes": "[\"RULE_MATCHED:nope\"]",
+    "summary": "MCP Guard denied \"delete_records\" by mcp-guard policy",
+    "receiptVersion": 2,
+    "canonicalization": "jcs_v2",
+    "signatureAlg": "ed25519",
+    "signatureKeyId": "mcpg-c290ad54bee2c31d",
+    "expiresAt": "2026-10-29T16:01:00.000Z",
+    "createdAt": "2026-10-29T15:01:00.000Z",
+    "deciderId": "system/mcp-guard-policy",
+    "deciderDisplay": "mcp-guard policy",
+    "deciderAuthMethod": "policy",
+    "attributionConfidence": "credentialed",
+    "scope": "production"
+  }
+}

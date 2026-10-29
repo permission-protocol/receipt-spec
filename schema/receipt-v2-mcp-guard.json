@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/permission-protocol/receipt-spec/schema/receipt-v2-mcp-guard.json",
+  "title": "MCP Guard local-issuer receipt, signed payload (receiptVersion 2, jcs_v2)",
+  "description": "The decoded signed payload of a receipt issued by MCP Guard (permission-protocol/mcp-guard 0.3.0 and later), a local issuer (SPEC.md section 14). Same canonicalization, digest and signature as schema/receipt-v2.json describes; a different value profile: no companyId (no tenant), an MCP request shape, the local deciders and the mcpg- key ids. Fields whose value is null are absent, never present as null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "idemKey",
+    "agentId",
+    "runId",
+    "requestJson",
+    "inputHash",
+    "status",
+    "riskTier",
+    "policyVersion",
+    "reasonCodes",
+    "summary",
+    "receiptVersion",
+    "canonicalization",
+    "signatureAlg",
+    "signatureKeyId",
+    "expiresAt",
+    "createdAt",
+    "deciderAuthMethod",
+    "attributionConfidence",
+    "scope"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^rcpt_mg_[0-9a-z]+_[0-9a-f]{12}$",
+      "description": "rcpt_mg_<base36 milliseconds>_<12 hex>."
+    },
+    "idemKey": {
+      "type": "string",
+      "pattern": "^mcp-guard:.+$",
+      "description": "mcp-guard:<decision id>: the held call's queue id, else a fresh UUID."
+    },
+    "agentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "--agent-id of the guard run; github-webhook for a pull request queued by the webhook."
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run_[0-9a-f]{16}$",
+      "description": "Random per guard start."
+    },
+    "requestJson": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Canonical JSON text of {action:{operation,resource,tool?},context:{mode,reversibility?,transport},hashes:{inputHash},intent:{category:\"mcp_tool_call\",name:\"mcp_guard_decision\"},policy:{decision:{outcome,ruleId?,ruleVersion}},scope?:{capability,ref?,commitSha?}}. Never carries tool arguments; resource is the configured server label, never the server's command line."
+    },
+    "inputHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "pp.hashable_payload.v1 over {tool, operation, input, metadata: null}: tool is the tool name (the method for a non-tool method), operation the JSON-RPC method (github/merge for a webhook pull request), input the arguments the server receives with agent metadata (_pp) removed."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "APPROVED",
+        "DENIED"
+      ],
+      "description": "The decision. Only decisions are signed; pending holds, EXPIRED and ERROR rows carry no signature and are not receipts under this specification."
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "mcp-guard's own tier from the tool and argument names. Not the hosted service's A_READONLY..D_PROHIBITED."
+    },
+    "policyVersion": {
+      "type": "string",
+      "pattern": "^mcp-guard-config:sha256:[0-9a-f]{64}$",
+      "description": "SHA-256 of the loaded configuration file's bytes."
+    },
+    "reasonCodes": {
+      "type": "string",
+      "minLength": 2,
+      "description": "JSON array text from a fixed set: RULE_MATCHED:<rule id> or DEFAULT_ACTION first, then COUNTDOWN_AUTO_RELEASE, OPERATOR_APPROVED, OPERATOR_DENIED or APPROVAL_EXPIRED when a hold was resolved."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "MCP Guard approved|denied \"<tool>\" by <decider display>. No argument values."
+    },
+    "receiptVersion": {
+      "const": 2
+    },
+    "canonicalization": {
+      "const": "jcs_v2"
+    },
+    "signatureAlg": {
+      "const": "ed25519"
+    },
+    "signatureKeyId": {
+      "type": "string",
+      "pattern": "^mcpg-(demo-)?[0-9a-f]{16}$",
+      "description": "Self-certifying: the first 16 hex digits of SHA-256 of the raw 32-byte public key. A verifier recomputes it from the key and refuses a mismatch."
+    },
+    "expiresAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "description": "ISO 8601 UTC with milliseconds (Date.prototype.toISOString). Expiry bounds one-time redemption of an approval; the signature stays valid evidence after expiry."
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "description": "ISO 8601 UTC with milliseconds. The moment the receipt row was created; for decision receipts signed at decision time this is when the decision landed."
+    },
+    "deciderId": {
+      "type": "string",
+      "pattern": "^(system/mcp-guard-policy|local:.+)$",
+      "description": "system/mcp-guard-policy: a rule, a spend cap, a countdown or an expiry decided; no person. local:<operator>: the operator named by --operator (default the OS user) in the local console. Absent only on an unattributed console denial."
+    },
+    "deciderDisplay": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deciderAuthMethod": {
+      "type": "string",
+      "enum": [
+        "policy",
+        "local_console"
+      ],
+      "description": "local_console: a decision in the guard's loopback console, which requires a per-process token printed to the operator's terminal."
+    },
+    "resolutionType": {
+      "type": "string",
+      "enum": [
+        "allow_once",
+        "deny"
+      ],
+      "description": "Console decisions only."
+    },
+    "attributionConfidence": {
+      "type": "string",
+      "enum": [
+        "credentialed",
+        "heuristic",
+        "unattributed"
+      ],
+      "description": "credentialed: a named policy version (system/mcp-guard-policy). heuristic: a console decision; the token proves access to the guard's terminal, the name is configured, not authenticated. unattributed: a console denial with no operator (an unattributed approval is refused in production)."
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "production",
+        "demo"
+      ],
+      "description": "demo exactly when the signing key is an mcpg-demo- key."
+    }
+  }
+}
